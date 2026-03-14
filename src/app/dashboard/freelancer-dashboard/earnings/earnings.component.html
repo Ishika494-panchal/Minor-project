@@ -1,0 +1,193 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
+      <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" (click)="goToFindJobs()">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" (click)="goToMyGigs()">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item" (click)="goToMessages()">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item" (click)="goToProjects()">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item" (click)="goToProfile()">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery" (keyup.enter)="search()">
+        </div>
+      </div>
+      
+      <div class="navbar-right">
+        <div class="notification-wrapper">
+          <button class="icon-btn notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+          
+          <!-- Notification Panel -->
+          <div class="notification-panel" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+                <div class="notification-icon" [ngClass]="notif.type">
+                  <i [class]="getNotificationIcon(notif.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notif.message }}</p>
+                  <span>{{ notif.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="profile-wrapper">
+          <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
+            <div class="profile-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
+              <span class="profile-role">Freelancer</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+            
+            <div class="dropdown-menu" *ngIf="showProfileMenu">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Earnings Content -->
+    <div class="content-section">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>Earnings</h1>
+      </div>
+
+      <!-- SECTION 1: Earnings Summary Cards -->
+      <section class="summary-section">
+        <div class="summary-cards">
+          <div class="summary-card" *ngFor="let card of earningsSummary">
+            <div class="card-icon" [ngClass]="card.color">
+              <i [class]="card.icon"></i>
+            </div>
+            <div class="card-content">
+              <span class="card-title">{{ card.title }}</span>
+              <span class="card-value">{{ card.value }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: Earnings Chart -->
+      <section class="chart-section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2>Monthly Earnings</h2>
+          </div>
+          <div class="chart-container">
+            <div class="chart-bars">
+              <div class="chart-bar" *ngFor="let month of monthlyEarnings">
+                <div class="bar-wrapper">
+                  <div class="bar-fill" [style.height.%]="getBarHeight(month.amount)">
+                    <span class="bar-amount">₹{{ month.amount | number }}</span>
+                  </div>
+                </div>
+                <span class="bar-label">{{ month.month }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: Payment History Table -->
+      <section class="table-section">
+        <div class="table-card">
+          <div class="table-header">
+            <h2>Payment History</h2>
+            <span class="record-count">{{ paymentHistory.length }} records</span>
+          </div>
+          <div class="table-container">
+            <table class="payment-table">
+              <thead>
+                <tr>
+                  <th>Project Name</th>
+                  <th>Client Name</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let payment of paymentHistory">
+                  <td class="project-name">{{ payment.projectName }}</td>
+                  <td class="client-name">{{ payment.clientName }}</td>
+                  <td class="amount">₹{{ payment.amount | number }}</td>
+                  <td class="date">{{ payment.date }}</td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(payment.status)">
+                      <i [class]="getStatusIcon(payment.status)"></i>
+                      {{ payment.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+

@@ -1,0 +1,175 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item" routerLink="/client-dashboard">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a class="nav-item" routerLink="/projects">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a href="#" class="nav-item active">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>My Payments</h1>
+      <div class="header-actions">
+        <button class="post-project-btn">
+          <i class="fas fa-plus"></i> Post a Project
+        </button>
+        <button class="notification-btn">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge">3</span>
+        </button>
+        <div class="user-avatar">
+          <i class="fas fa-user"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- Payment Summary Cards -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon total-spent">
+          <i class="fas fa-wallet"></i>
+        </div>
+        <div class="stat-info">
+<span class="stat-value">₹{{ summary.totalSpent | number }}</span>
+          <span class="stat-label">Total Spent</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon pending">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-info">
+<span class="stat-value">₹{{ getPendingPayments().length > 0 ? getPendingPayments().reduce((sum, p) => sum + p.amount, 0) : 0 }}</span>
+          <span class="stat-label">Pending Payments</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon completed">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ summary.completedPayments }}</span>
+          <span class="stat-label">Completed Payments</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pay Now Section -->
+    <section class="pay-now-section" *ngIf="getPendingPayments().length > 0">
+      <div class="section-header">
+        <h2><i class="fas fa-exclamation-circle"></i> Pending Payments</h2>
+        <span class="pending-count">{{ getPendingPayments().length }} pending</span>
+      </div>
+      <div class="pending-payments-grid">
+        <div class="pending-payment-card" *ngFor="let payment of getPendingPayments()">
+          <div class="pending-payment-info">
+            <h3>{{ payment.projectTitle }}</h3>
+            <p class="freelancer-name"><i class="fas fa-user"></i> {{ payment.freelancerName }}</p>
+<p class="payment-amount">₹{{ payment.amount | number }}</p>
+          </div>
+          <div class="pending-payment-actions">
+            <button 
+              class="pay-now-btn" 
+              (click)="payNow(payment)"
+              [disabled]="processingPayment === payment.id">
+              <i class="fas fa-credit-card" *ngIf="processingPayment !== payment.id"></i>
+              <i class="fas fa-spinner fa-spin" *ngIf="processingPayment === payment.id"></i>
+              {{ processingPayment === payment.id ? 'Processing...' : 'Pay Now' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transaction History -->
+    <section class="transactions-section">
+      <div class="section-header">
+        <h2>Transaction History</h2>
+        <span class="transaction-count">{{ payments.length }} transactions</span>
+      </div>
+      
+      <div class="transactions-table-container">
+        <table class="transactions-table">
+          <thead>
+            <tr>
+              <th>Project Title</th>
+              <th>Freelancer Name</th>
+              <th>Amount</th>
+              <th>Payment Method</th>
+              <th>Date</th>
+              <th>Payment Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let payment of payments">
+              <td class="project-title">{{ payment.projectTitle }}</td>
+              <td>{{ payment.freelancerName }}</td>
+<td class="amount">₹{{ payment.amount | number }}</td>
+              <td>
+                <span class="payment-method">
+                  <i class="fas fa-credit-card" *ngIf="payment.paymentMethod === 'Credit Card'"></i>
+                  <i class="fab fa-paypal" *ngIf="payment.paymentMethod === 'PayPal'"></i>
+                  <i class="fas fa-university" *ngIf="payment.paymentMethod === 'Bank Transfer'"></i>
+                  {{ payment.paymentMethod }}
+                </span>
+              </td>
+              <td>{{ payment.date | date:'mediumDate' }}</td>
+              <td>
+                <span class="status-badge" 
+                      [class.pending]="payment.status === 'Pending'"
+                      [class.completed]="payment.status === 'Completed'">
+                  {{ payment.status }}
+                </span>
+              </td>
+              <td>
+                <button 
+                  class="action-btn pay-btn" 
+                  *ngIf="payment.status === 'Pending'"
+                  (click)="payNow(payment)"
+                  [disabled]="processingPayment === payment.id">
+                  <i class="fas fa-credit-card"></i> Pay
+                </button>
+                <span class="completed-text" *ngIf="payment.status === 'Completed'">
+                  <i class="fas fa-check"></i> Paid
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+

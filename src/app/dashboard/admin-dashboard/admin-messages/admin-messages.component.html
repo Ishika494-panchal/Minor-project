@@ -1,0 +1,411 @@
+<div class="messages-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Admin Messages</h2>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" [class.active]="viewMode === 'conversations'" (click)="viewMode = 'conversations'; selectedConversation = null; selectedSupportChat = null;">
+        <i class="fas fa-comments"></i>
+        <span>Conversations</span>
+        <span class="badge" *ngIf="conversations.length > 0">{{ conversations.length }}</span>
+      </a>
+      <a class="nav-item" [class.active]="viewMode === 'reported'" (click)="viewMode = 'reported'">
+        <i class="fas fa-flag"></i>
+        <span>Reported</span>
+        <span class="badge warning" *ngIf="reportedCount > 0">{{ reportedCount }}</span>
+      </a>
+      <a class="nav-item" [class.active]="viewMode === 'support'" (click)="viewMode = 'support'; selectedConversation = null; selectedSupportChat = null;">
+        <i class="fas fa-headset"></i>
+        <span>Support</span>
+        <span class="badge" *ngIf="supportChats.length > 0">{{ supportChats.length }}</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Conversations View -->
+    <ng-container *ngIf="viewMode === 'conversations'">
+      <!-- Conversations List Panel -->
+      <div class="conversations-panel">
+        <div class="panel-header">
+          <h2>Conversations</h2>
+        </div>
+        
+        <!-- Search -->
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search by name or project..." [(ngModel)]="searchQuery">
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+          <button class="filter-btn" [class.active]="filterStatus === 'all'" (click)="filterStatus = 'all'">All</button>
+          <button class="filter-btn" [class.active]="filterStatus === 'active'" (click)="filterStatus = 'active'">Active</button>
+          <button class="filter-btn" [class.active]="filterStatus === 'reported'" (click)="filterStatus = 'reported'">Reported</button>
+          <button class="filter-btn" [class.active]="filterStatus === 'disputed'" (click)="filterStatus = 'disputed'">Disputed</button>
+          <button class="filter-btn" [class.active]="filterStatus === 'resolved'" (click)="filterStatus = 'resolved'">Resolved</button>
+        </div>
+
+        <!-- Conversations List -->
+        <div class="conversations-list">
+          <div 
+            class="conversation-item" 
+            *ngFor="let conversation of filteredConversations"
+            [class.active]="selectedConversation?.id === conversation.id"
+            [class.disputed]="conversation.status === 'disputed'"
+            [class.reported]="conversation.status === 'reported'"
+            [class.resolved]="conversation.status === 'resolved'"
+            (click)="selectConversation(conversation)"
+          >
+            <div class="users-info">
+              <div class="avatar client">{{ conversation.clientAvatar }}</div>
+              <div class="avatar freelancer">{{ conversation.freelancerAvatar }}</div>
+            </div>
+            <div class="conversation-info">
+              <div class="conversation-header-row">
+                <span class="project-title">{{ conversation.projectTitle }}</span>
+                <span class="conversation-time">{{ conversation.lastMessageTime }}</span>
+              </div>
+              <div class="users-names">
+                <span class="client-name">{{ conversation.clientName }}</span>
+                <span class="separator">↔</span>
+                <span class="freelancer-name">{{ conversation.freelancerName }}</span>
+              </div>
+              <p class="conversation-preview">{{ conversation.lastMessage }}</p>
+              <div class="conversation-meta">
+                <span class="status-badge" [class]="conversation.status">{{ conversation.status }}</span>
+                <span class="unread-badge" *ngIf="conversation.unread > 0">{{ conversation.unread }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="filteredConversations.length === 0">
+            <i class="fas fa-comments"></i>
+            <p>No conversations found</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Window -->
+      <div class="chat-panel" *ngIf="selectedConversation; else noChatSelected">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="chat-user-info">
+            <div class="users-avatar">
+              <div class="avatar-small client">{{ selectedConversation.clientAvatar }}</div>
+              <div class="avatar-small freelancer">{{ selectedConversation.freelancerAvatar }}</div>
+            </div>
+            <div class="chat-user-details">
+              <h3>{{ selectedConversation.projectTitle }}</h3>
+              <span class="users-label">
+                {{ selectedConversation.clientName }} ↔ {{ selectedConversation.freelancerName }}
+              </span>
+              <span class="status-text" [class]="selectedConversation.status">{{ selectedConversation.status }}</span>
+            </div>
+          </div>
+          <div class="chat-actions">
+            <button class="action-btn" title="Send Warning" (click)="openWarningModal()">
+              <i class="fas fa-exclamation-triangle"></i>
+            </button>
+            <button class="action-btn" title="Mark as Resolved" (click)="markAsResolved()" *ngIf="selectedConversation.status !== 'resolved'">
+              <i class="fas fa-check-circle"></i>
+            </button>
+            <div class="dropdown">
+              <button class="action-btn">
+                <i class="fas fa-ellipsis-v"></i>
+              </button>
+              <div class="dropdown-menu">
+                <a (click)="openActionModal('warn', {id: selectedConversation.clientId, name: selectedConversation.clientName, role: 'client'})">
+                  <i class="fas fa-exclamation-triangle"></i> Warn Client
+                </a>
+                <a (click)="openActionModal('warn', {id: selectedConversation.freelancerId, name: selectedConversation.freelancerName, role: 'freelancer'})">
+                  <i class="fas fa-exclamation-triangle"></i> Warn Freelancer
+                </a>
+                <a (click)="openActionModal('flag', {id: selectedConversation.clientId, name: selectedConversation.clientName, role: 'client'})">
+                  <i class="fas fa-flag"></i> Flag Client
+                </a>
+                <a (click)="openActionModal('flag', {id: selectedConversation.freelancerId, name: selectedConversation.freelancerName, role: 'freelancer'})">
+                  <i class="fas fa-flag"></i> Flag Freelancer
+                </a>
+                <a (click)="openActionModal('mute', {id: selectedConversation.clientId, name: selectedConversation.clientName, role: 'client'})">
+                  <i class="fas fa-volume-mute"></i> Mute Client
+                </a>
+                <a (click)="openActionModal('mute', {id: selectedConversation.freelancerId, name: selectedConversation.freelancerName, role: 'freelancer'})">
+                  <i class="fas fa-volume-mute"></i> Mute Freelancer
+                </a>
+                <a (click)="openActionModal('block', {id: selectedConversation.clientId, name: selectedConversation.clientName, role: 'client'})">
+                  <i class="fas fa-ban"></i> Block Client
+                </a>
+                <a (click)="openActionModal('block', {id: selectedConversation.freelancerId, name: selectedConversation.freelancerName, role: 'freelancer'})">
+                  <i class="fas fa-ban"></i> Block Freelancer
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages">
+          <div class="messages-wrapper">
+            <div 
+              class="message" 
+              *ngFor="let message of selectedConversation.messages"
+              [class.sent]="message.isAdmin"
+              [class.received]="!message.isAdmin"
+              [class.reported]="message.isReported"
+            >
+              <div class="message-header">
+                <span class="sender-name" [class]="message.senderRole">{{ message.senderName }}</span>
+                <span class="message-role">({{ message.senderRole }})</span>
+                <i class="fas fa-flag reported-icon" *ngIf="message.isReported" title="Reported: {{ message.reportReason }}"></i>
+              </div>
+              <div class="message-bubble">
+                <p>{{ message.text }}</p>
+                <span class="message-time">{{ message.time }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-area">
+          <input 
+            type="text" 
+            placeholder="Type a message as Admin..." 
+            [(ngModel)]="newMessage"
+            (keyup.enter)="sendMessage()"
+          >
+          <button class="send-btn" (click)="sendMessage()" [disabled]="!newMessage.trim()">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- No Chat Selected -->
+      <ng-template #noChatSelected>
+        <div class="no-chat-selected">
+          <div class="no-chat-content">
+            <i class="fas fa-comments"></i>
+            <h3>Select a conversation</h3>
+            <p>Choose a conversation from the list to view messages</p>
+          </div>
+        </div>
+      </ng-template>
+    </ng-container>
+
+    <!-- Reported Messages View -->
+    <ng-container *ngIf="viewMode === 'reported'">
+      <div class="reported-panel">
+        <div class="panel-header">
+          <h2>Reported Messages</h2>
+        </div>
+        
+        <div class="reported-list">
+          <div class="reported-item" *ngFor="let report of reportedMessages">
+            <div class="reported-header">
+              <span class="reported-by">Reported by {{ report.reportedBy }}</span>
+              <span class="reported-time">{{ report.reportedAt }}</span>
+            </div>
+            <div class="reported-content">
+              <div class="sender-info">
+                <span class="sender-name" [class]="report.senderRole">{{ report.senderName }}</span>
+                <span class="sender-role">({{ report.senderRole }})</span>
+              </div>
+              <p class="message-text">"{{ report.messageText }}"</p>
+              <p class="reason">
+                <i class="fas fa-flag"></i> Reason: {{ report.reason }}
+              </p>
+            </div>
+            <div class="reported-actions">
+              <span class="status-badge" [class]="report.status">{{ report.status }}</span>
+              <button class="btn-review" (click)="viewReportedInConversation(report)" *ngIf="report.status === 'pending'">
+                <i class="fas fa-eye"></i> View in Chat
+              </button>
+              <button class="btn-action" (click)="actionOnReportedMessage(report)" *ngIf="report.status === 'pending'">
+                <i class="fas fa-gavel"></i> Take Action
+              </button>
+            </div>
+          </div>
+          
+          <div class="empty-state" *ngIf="reportedMessages.length === 0">
+            <i class="fas fa-check-circle"></i>
+            <p>No reported messages</p>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Support Chat View -->
+    <ng-container *ngIf="viewMode === 'support'">
+      <!-- Support Chats List -->
+      <div class="conversations-panel">
+        <div class="panel-header">
+          <h2>Support Chats</h2>
+        </div>
+        
+        <!-- Search -->
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search support chats..." [(ngModel)]="searchQuery">
+        </div>
+
+        <!-- Support Chats List -->
+        <div class="conversations-list">
+          <div 
+            class="conversation-item support" 
+            *ngFor="let chat of supportChats"
+            [class.active]="selectedSupportChat?.id === chat.id"
+            (click)="selectSupportChat(chat)"
+          >
+            <div class="avatar support-avatar">{{ chat.userAvatar }}</div>
+            <div class="conversation-info">
+              <div class="conversation-header-row">
+                <span class="user-name">{{ chat.userName }}</span>
+                <span class="conversation-time">{{ chat.lastMessageTime }}</span>
+              </div>
+              <span class="user-role">{{ chat.userRole }}</span>
+              <p class="conversation-preview">{{ chat.subject }}</p>
+              <p class="last-message">{{ chat.lastMessage }}</p>
+              <div class="conversation-meta">
+                <span class="status-badge" [class]="chat.status">{{ chat.status }}</span>
+                <span class="unread-badge" *ngIf="chat.unread > 0">{{ chat.unread }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="supportChats.length === 0">
+            <i class="fas fa-headset"></i>
+            <p>No support chats</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support Chat Window -->
+      <div class="chat-panel" *ngIf="selectedSupportChat; else noSupportSelected">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="chat-user-info">
+            <div class="avatar-large">{{ selectedSupportChat.userAvatar }}</div>
+            <div class="chat-user-details">
+              <h3>{{ selectedSupportChat.userName }}</h3>
+              <span class="user-role">{{ selectedSupportChat.userRole }}</span>
+              <span class="subject">{{ selectedSupportChat.subject }}</span>
+            </div>
+          </div>
+          <div class="chat-actions">
+            <button class="action-btn resolve" (click)="resolveSupportChat()" *ngIf="selectedSupportChat.status !== 'resolved'">
+              <i class="fas fa-check"></i> Resolve
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages">
+          <div class="messages-wrapper">
+            <div 
+              class="message" 
+              *ngFor="let message of selectedSupportChat.messages"
+              [class.sent]="message.isAdmin"
+              [class.received]="!message.isAdmin"
+            >
+              <div class="message-header">
+                <span class="sender-name" [class]="message.senderRole">{{ message.senderName }}</span>
+              </div>
+              <div class="message-bubble">
+                <p>{{ message.text }}</p>
+                <span class="message-time">{{ message.time }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-area">
+          <input 
+            type="text" 
+            placeholder="Type a reply..." 
+            [(ngModel)]="newMessage"
+            (keyup.enter)="sendSupportMessage()"
+          >
+          <button class="send-btn" (click)="sendSupportMessage()" [disabled]="!newMessage.trim()">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- No Support Chat Selected -->
+      <ng-template #noSupportSelected>
+        <div class="no-chat-selected">
+          <div class="no-chat-content">
+            <i class="fas fa-headset"></i>
+            <h3>Select a support chat</h3>
+            <p>Choose a chat from the list to assist the user</p>
+          </div>
+        </div>
+      </ng-template>
+    </ng-container>
+  </main>
+</div>
+
+<!-- Action Modal -->
+<div class="modal-overlay" *ngIf="showActionModal" (click)="closeActionModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ actionType | titlecase }} User</h3>
+      <button class="close-btn" (click)="closeActionModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p>You are about to <strong>{{ actionType }}</strong> the following user:</p>
+      <div class="user-info-box">
+        <strong>{{ selectedUser?.name }}</strong>
+        <span class="user-role">({{ selectedUser?.role }})</span>
+      </div>
+      <div class="form-group">
+        <label>Reason for {{ actionType }}:</label>
+        <textarea [(ngModel)]="actionReason" placeholder="Enter reason..." rows="4"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeActionModal()">Cancel</button>
+      <button class="btn-confirm" [class]="actionType" (click)="submitAction()">Confirm {{ actionType | titlecase }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Warning Modal -->
+<div class="modal-overlay" *ngIf="showWarningModal" (click)="closeWarningModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Send Warning</h3>
+      <button class="close-btn" (click)="closeWarningModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p>Send a warning message to both users in this conversation:</p>
+      <div class="form-group">
+        <label>Warning Message:</label>
+        <textarea [(ngModel)]="warningMessage" placeholder="Enter warning message..." rows="4"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeWarningModal()">Cancel</button>
+      <button class="btn-confirm warning" (click)="sendWarning()">Send Warning</button>
+    </div>
+  </div>
+</div>
+

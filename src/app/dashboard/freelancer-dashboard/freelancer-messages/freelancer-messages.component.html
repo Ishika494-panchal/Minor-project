@@ -1,0 +1,224 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
+      <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" (click)="goToFindJobs()">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" (click)="goToMyGigs()">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item" (click)="goToProjects()">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item" (click)="goToEarnings()">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item" (click)="goToProfile()">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery" (keyup.enter)="search()">
+        </div>
+      </div>
+      
+      <div class="navbar-right">
+        <div class="notification-wrapper">
+          <button class="icon-btn notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+          
+          <!-- Notification Panel -->
+          <div class="notification-panel" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+                <div class="notification-icon" [ngClass]="notif.type">
+                  <i [class]="getNotificationIcon(notif.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notif.message }}</p>
+                  <span>{{ notif.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="profile-wrapper">
+          <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
+            <div class="profile-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
+              <span class="profile-role">Freelancer</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+            
+            <div class="dropdown-menu" *ngIf="showProfileMenu">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages Content -->
+    <div class="content-section messages-section">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>Messages</h1>
+      </div>
+
+      <!-- Messages Layout -->
+      <div class="messages-layout">
+        <!-- Conversation List -->
+        <div class="conversations-panel">
+          <div class="conversations-header">
+            <h3>Conversations</h3>
+          </div>
+          
+          <div class="conversations-list">
+            <div 
+              class="conversation-item" 
+              *ngFor="let conv of conversations"
+              [class.active]="selectedConversation?.id === conv.id"
+              (click)="selectConversation(conv)"
+            >
+              <div class="conv-avatar">
+                <img [src]="conv.avatar" [alt]="conv.name">
+                <span class="online-indicator" *ngIf="conv.online"></span>
+              </div>
+              <div class="conv-details">
+                <div class="conv-header">
+                  <span class="conv-name">{{ conv.name }}</span>
+                  <span class="conv-time">{{ conv.lastMessageTime }}</span>
+                </div>
+                <p class="conv-message">{{ conv.lastMessage }}</p>
+              </div>
+              <span class="unread-badge" *ngIf="conv.unread > 0">{{ conv.unread }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Window -->
+        <div class="chat-panel">
+          <!-- Chat Header -->
+          <div class="chat-header" *ngIf="selectedConversation">
+            <div class="chat-user-info">
+              <div class="chat-avatar">
+                <img [src]="selectedConversation.avatar" [alt]="selectedConversation.name">
+                <span class="online-dot" *ngIf="selectedConversation.online"></span>
+              </div>
+              <div class="chat-user-details">
+                <span class="chat-user-name">{{ selectedConversation.name }}</span>
+                <span class="chat-status" *ngIf="selectedConversation.online">Online</span>
+                <span class="chat-status offline" *ngIf="!selectedConversation.online">Offline</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div class="chat-messages" *ngIf="selectedConversation">
+            <div 
+              class="message" 
+              *ngFor="let msg of selectedConversation.messages"
+              [class.sent]="msg.sent"
+              [class.received]="!msg.sent"
+            >
+              <div class="message-bubble">
+                <p>{{ msg.text }}</p>
+                <!-- Attachment Display -->
+                <div class="message-attachment" *ngIf="msg.attachment">
+                  <div class="attachment-card" [class]="msg.attachment.type">
+                    <i [class]="getFileIcon(msg.attachment.type)"></i>
+                    <div class="attachment-info">
+                      <span class="attachment-name">{{ msg.attachment.name }}</span>
+                      <span class="attachment-size">{{ formatFileSize(msg.attachment.size) }}</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="message-time">{{ msg.time }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Input -->
+          <div class="chat-input" *ngIf="selectedConversation">
+            <label class="attachment-btn">
+              <i class="fas fa-paperclip"></i>
+              <input 
+                type="file" 
+                accept=".pdf,.png,.jpg,.jpeg,.zip"
+                (change)="onFileSelected($event)"
+                style="display: none;"
+              >
+            </label>
+            <input 
+              type="text" 
+              placeholder="Type a message..." 
+              [(ngModel)]="newMessage"
+              (keyup.enter)="sendMessage()"
+            >
+            <button class="send-btn" (click)="sendMessage()">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+
+          <!-- Empty State -->
+          <div class="no-chat-selected" *ngIf="!selectedConversation">
+            <i class="fas fa-comments"></i>
+            <h3>Select a conversation</h3>
+            <p>Choose a conversation from the list to start messaging</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+

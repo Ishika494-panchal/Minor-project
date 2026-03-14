@@ -1,0 +1,175 @@
+<div class="signup-page">
+  <div class="signup-container">
+    <div class="signup-card">
+      <!-- Logo -->
+      <div class="signup-header">
+        <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="signup-logo">
+        <h2>Create Your Account</h2>
+        <p>Join Skillzyy and start your journey</p>
+      </div>
+
+      <!-- Error Message -->
+      <div class="error-message" *ngIf="errorMessage">
+        <i class="fas fa-exclamation-circle"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <!-- Success Message -->
+      <div class="success-message" *ngIf="successMessage">
+        <i class="fas fa-check-circle"></i>
+        <span>{{ successMessage }}</span>
+      </div>
+
+      <!-- Signup Form -->
+      <form [formGroup]="signupForm" (ngSubmit)="onSubmit()" class="signup-form">
+        <!-- Full Name Field -->
+        <div class="form-group">
+          <label for="fullName">Full Name</label>
+          <div class="input-wrapper">
+            <i class="fas fa-user input-icon"></i>
+            <input
+              type="text"
+              id="fullName"
+              formControlName="fullName"
+              placeholder="Enter your full name"
+              [class.error]="f['fullName'].touched && f['fullName'].invalid"
+            >
+          </div>
+          <div class="error-text" *ngIf="f['fullName'].touched && f['fullName'].errors">
+            <small *ngIf="f['fullName'].errors['required']">Full name is required</small>
+            <small *ngIf="f['fullName'].errors['minlength']">Name must be at least 3 characters</small>
+          </div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div class="input-wrapper">
+            <i class="fas fa-envelope input-icon"></i>
+            <input
+              type="email"
+              id="email"
+              formControlName="email"
+              placeholder="Enter your email"
+              [class.error]="f['email'].touched && f['email'].invalid"
+            >
+          </div>
+          <div class="error-text" *ngIf="f['email'].touched && f['email'].errors">
+            <small *ngIf="f['email'].errors['required']">Email is required</small>
+            <small *ngIf="f['email'].errors['email']">Please enter a valid email</small>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock input-icon"></i>
+            <input
+              [type]="passwordVisible ? 'text' : 'password'"
+              id="password"
+              formControlName="password"
+              placeholder="Create a password"
+              [class.error]="f['password'].touched && f['password'].invalid"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="togglePasswordVisibility()"
+            >
+              <i [class]="passwordVisible ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+          </div>
+          <div class="error-text" *ngIf="f['password'].touched && f['password'].errors">
+            <small *ngIf="f['password'].errors['required']">Password is required</small>
+            <small *ngIf="f['password'].errors['minlength']">Password must be at least 6 characters</small>
+          </div>
+        </div>
+
+        <!-- Confirm Password Field -->
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock input-icon"></i>
+            <input
+              [type]="confirmPasswordVisible ? 'text' : 'password'"
+              id="confirmPassword"
+              formControlName="confirmPassword"
+              placeholder="Confirm your password"
+              [class.error]="f['confirmPassword'].touched && f['confirmPassword'].invalid"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="toggleConfirmPasswordVisibility()"
+            >
+              <i [class]="confirmPasswordVisible ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+          </div>
+          <div class="error-text" *ngIf="f['confirmPassword'].touched && f['confirmPassword'].errors">
+            <small *ngIf="f['confirmPassword'].errors['required']">Please confirm your password</small>
+            <small *ngIf="f['confirmPassword'].errors['passwordMismatch']">Passwords do not match</small>
+          </div>
+        </div>
+
+        <!-- Role Selection -->
+        <div class="form-group">
+          <label>I want to join as a</label>
+          <div class="role-selection">
+            <div 
+              class="role-option" 
+              *ngFor="let role of roles"
+              [class.selected]="f['role'].value === role.value"
+              (click)="selectRole(role.value)"
+            >
+              <div class="role-radio">
+                <div class="radio-inner" *ngIf="f['role'].value === role.value"></div>
+              </div>
+              <div class="role-content">
+                <span class="role-label">{{ role.label }}</span>
+                <span class="role-description">{{ role.description }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="error-text" *ngIf="f['role'].touched && f['role'].errors">
+            <small *ngIf="f['role'].errors['required']">Please select a role</small>
+          </div>
+        </div>
+
+        <!-- Terms and Conditions -->
+        <div class="terms-container">
+          <label class="checkbox-container">
+            <input type="checkbox" formControlName="agreeToTerms">
+            <span class="checkmark"></span>
+            <span class="terms-text">I agree to the <a href="#">Terms and Conditions</a> and <a href="#">Privacy Policy</a></span>
+          </label>
+          <div class="error-text" *ngIf="f['agreeToTerms'].touched && f['agreeToTerms'].errors">
+            <small *ngIf="f['agreeToTerms'].errors['required']">You must agree to the terms</small>
+          </div>
+        </div>
+
+        <!-- Signup Button -->
+        <button
+          type="submit"
+          class="signup-btn"
+          [disabled]="isLoading"
+        >
+          <span *ngIf="!isLoading">Create Account</span>
+          <div class="spinner" *ngIf="isLoading"></div>
+        </button>
+      </form>
+
+      <!-- Login Link -->
+      <div class="login-link">
+        <p>Already have an account? <a (click)="onLogin()">Login</a></p>
+      </div>
+
+      <!-- Back to Home -->
+      <div class="back-home">
+        <a (click)="goToLanding()">← Back to Home</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+

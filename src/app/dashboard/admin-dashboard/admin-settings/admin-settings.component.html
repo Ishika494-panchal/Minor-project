@@ -1,0 +1,469 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy Admin</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/manage-users" class="nav-item">
+        <i class="fas fa-users"></i> Users
+      </a>
+      <a routerLink="/admin-projects" class="nav-item">
+        <i class="fas fa-project-diagram"></i> Projects
+      </a>
+      <a routerLink="/admin-revenue" class="nav-item">
+        <i class="fas fa-dollar-sign"></i> Revenue
+      </a>
+      <a routerLink="/admin-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/admin-security" class="nav-item">
+        <i class="fas fa-shield-alt"></i> Security
+      </a>
+      <a routerLink="/admin-settings" class="nav-item active">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>Settings</h1>
+      <div class="header-actions">
+        <button class="notification-btn">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge">3</span>
+        </button>
+        <div class="user-avatar">
+          <i class="fas fa-user-shield"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- Success Message -->
+    <div class="success-message" *ngIf="showSaveConfirmation">
+      <i class="fas fa-check-circle"></i>
+      <span>Settings saved successfully!</span>
+    </div>
+
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'general'"
+        (click)="setActiveTab('general')">
+        <i class="fas fa-cogs"></i> General
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'users'"
+        (click)="setActiveTab('users')">
+        <i class="fas fa-users-cog"></i> User Management
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'payment'"
+        (click)="setActiveTab('payment')">
+        <i class="fas fa-credit-card"></i> Payment
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'notifications'"
+        (click)="setActiveTab('notifications')">
+        <i class="fas fa-bell"></i> Notifications
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'security'"
+        (click)="setActiveTab('security')">
+        <i class="fas fa-shield-alt"></i> Security
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab === 'profile'"
+        (click)="setActiveTab('profile')">
+        <i class="fas fa-user-cog"></i> Profile
+      </button>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content" *ngIf="settings">
+      
+      <!-- General Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'general'">
+        <div class="section-header">
+          <h3><i class="fas fa-cogs"></i> General Settings</h3>
+          <p>Configure your platform's basic information</p>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Platform Name</label>
+            <input type="text" [(ngModel)]="settings.general.platformName" 
+                   placeholder="Enter platform name">
+          </div>
+          
+          <div class="form-group">
+            <label>Contact Email</label>
+            <input type="email" [(ngModel)]="settings.general.contactEmail" 
+                   placeholder="contact@platform.com">
+          </div>
+          
+          <div class="form-group">
+            <label>Support Email</label>
+            <input type="email" [(ngModel)]="settings.general.supportEmail" 
+                   placeholder="support@platform.com">
+          </div>
+          
+          <div class="form-group">
+            <label>Default Language</label>
+            <select [(ngModel)]="settings.general.defaultLanguage">
+              <option *ngFor="let lang of languages" [value]="lang.value">
+                {{ lang.label }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Time Zone</label>
+            <select [(ngModel)]="settings.general.timeZone">
+              <option *ngFor="let tz of timeZones" [value]="tz.value">
+                {{ tz.label }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Platform Logo</label>
+            <div class="logo-upload">
+              <div class="logo-preview">
+                <img [src]="settings.general.platformLogo" alt="Platform Logo" 
+                     *ngIf="settings.general.platformLogo">
+                <i class="fas fa-image" *ngIf="!settings.general.platformLogo"></i>
+              </div>
+              <input type="file" accept="image/*" (change)="onLogoUpload($event)" 
+                     id="logo-upload">
+              <label for="logo-upload" class="upload-btn">
+                <i class="fas fa-upload"></i> Upload Logo
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- User Management Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'users'">
+        <div class="section-header">
+          <h3><i class="fas fa-users-cog"></i> User Management Settings</h3>
+          <p>Configure user registration and verification settings</p>
+        </div>
+        
+        <div class="settings-list">
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Enable User Registration</label>
+              <span class="setting-description">Allow new users to register on the platform</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.userManagement.enableRegistration">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Freelancer Verification Required</label>
+              <span class="setting-description">Require verification for freelancer accounts</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.userManagement.freelancerVerification">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Email Verification Required</label>
+              <span class="setting-description">Require email verification for new users</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.userManagement.emailVerification">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label>Profile Update Limit</label>
+              <span class="setting-description">Maximum profile updates per month</span>
+            </div>
+            <input type="number" [(ngModel)]="settings.userManagement.profileUpdateLimit" 
+                   class="number-input" min="1" max="50">
+          </div>
+        </div>
+      </section>
+
+      <!-- Payment Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'payment'">
+        <div class="section-header">
+          <h3><i class="fas fa-credit-card"></i> Payment Settings</h3>
+          <p>Configure payment and commission settings</p>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Platform Commission (%)</label>
+            <input type="number" [(ngModel)]="settings.payment.commissionPercentage" 
+                   min="0" max="100" placeholder="10">
+          </div>
+          
+          <div class="form-group">
+            <label>Minimum Withdrawal Amount (₹)</label>
+            <input type="number" [(ngModel)]="settings.payment.minimumWithdrawal" 
+                   min="0" placeholder="500">
+          </div>
+          
+          <div class="form-group">
+            <label>Payment Processing</label>
+            <select [(ngModel)]="settings.payment.paymentProcessing">
+              <option *ngFor="let opt of paymentProcessingOptions" [value]="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group full-width">
+          <label>Enabled Payment Methods</label>
+          <div class="payment-methods-grid">
+            <div 
+              class="payment-method-card" 
+              *ngFor="let method of availablePaymentMethods"
+              [class.active]="isPaymentMethodEnabled(method)"
+              (click)="togglePaymentMethod(method)">
+              <i class="fas" 
+                 [class.fa-credit-card]="method === 'Credit Card'"
+                 [class.fa-credit-card]="method === 'Debit Card'"
+                 [class.fa-paypal]="method === 'PayPal'"
+                 [class.fa-mobile-alt]="method === 'UPI'"
+                 [class.fa-university]="method === 'Bank Transfer'"
+                 [class.fa-bitcoin]="method === 'Crypto'"></i>
+              <span>{{ method }}</span>
+              <i class="fas fa-check check-icon" *ngIf="isPaymentMethodEnabled(method)"></i>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Notification Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'notifications'">
+        <div class="section-header">
+          <h3><i class="fas fa-bell"></i> Notification Settings</h3>
+          <p>Configure how you receive notifications</p>
+        </div>
+        
+        <div class="settings-list">
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Email Notifications</label>
+              <span class="setting-description">Receive notifications via email</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.notifications.emailNotifications">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>System Notifications</label>
+              <span class="setting-description">Show notifications in the system</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.notifications.systemNotifications">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>New Project Alerts</label>
+              <span class="setting-description">Get notified about new projects</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.notifications.newProjectAlerts">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Payment Notifications</label>
+              <span class="setting-description">Get notified about payment activities</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.notifications.paymentNotifications">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>User Activity Alerts</label>
+              <span class="setting-description">Get notified about user activities</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.notifications.userActivityAlerts">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Security Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'security'">
+        <div class="section-header">
+          <h3><i class="fas fa-shield-alt"></i> Security Settings</h3>
+          <p>Configure platform security options</p>
+        </div>
+        
+        <div class="settings-list">
+          <div class="setting-item toggle-item">
+            <div class="setting-info">
+              <label>Two-Factor Authentication (2FA)</label>
+              <span class="setting-description">Enable 2FA for admin accounts</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="settings.security.twoFactorAuth">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label>Password Strength Requirements</label>
+              <span class="setting-description">Set minimum password strength</span>
+            </div>
+            <select [(ngModel)]="settings.security.passwordStrength" class="select-input">
+              <option *ngFor="let opt of passwordStrengths" [value]="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label>Session Timeout (minutes)</label>
+              <span class="setting-description">Auto logout after inactivity</span>
+            </div>
+            <input type="number" [(ngModel)]="settings.security.sessionTimeout" 
+                   class="number-input" min="5" max="120">
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Profile Settings -->
+      <section class="settings-section" *ngIf="activeTab === 'profile'">
+        <div class="section-header">
+          <h3><i class="fas fa-user-cog"></i> Admin Profile Settings</h3>
+          <p>Update your personal information</p>
+        </div>
+        
+        <div class="profile-section">
+          <div class="profile-picture-upload">
+            <div class="profile-picture">
+              <img [src]="settings.profile.profilePicture" alt="Profile Picture" 
+                   *ngIf="settings.profile.profilePicture">
+              <i class="fas fa-user-shield" *ngIf="!settings.profile.profilePicture"></i>
+            </div>
+            <input type="file" accept="image/*" (change)="onProfilePictureUpload($event)" 
+                   id="profile-upload">
+            <label for="profile-upload" class="upload-btn">
+              <i class="fas fa-camera"></i> Change Photo
+            </label>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" [(ngModel)]="settings.profile.name" 
+                     placeholder="Enter your name">
+            </div>
+            
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" [(ngModel)]="settings.profile.email" 
+                     placeholder="admin@platform.com">
+            </div>
+            
+            <div class="form-group full-width">
+              <button class="change-password-btn" (click)="openPasswordModal()">
+                <i class="fas fa-key"></i> Change Password
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Save Button -->
+      <div class="save-section">
+        <button class="save-btn" (click)="saveSettings()">
+          <i class="fas fa-save"></i> Save Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="!settings">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Loading settings...</p>
+    </div>
+  </main>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" *ngIf="showPasswordModal" (click)="closePasswordModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Change Password</h2>
+      <button class="close-btn" (click)="closePasswordModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form (ngSubmit)="savePassword()">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" [(ngModel)]="currentPassword" name="currentPassword" 
+                 placeholder="Enter current password" required>
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" [(ngModel)]="newPassword" name="newPassword" 
+                 placeholder="Enter new password" required>
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" [(ngModel)]="confirmPassword" name="confirmPassword" 
+                 placeholder="Confirm new password" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" (click)="closePasswordModal()">Cancel</button>
+          <button type="submit" class="save-btn">Change Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+

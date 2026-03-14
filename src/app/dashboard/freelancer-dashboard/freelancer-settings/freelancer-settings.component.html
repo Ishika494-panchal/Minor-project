@@ -1,0 +1,278 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <span class="brand-name">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="router.navigate(['/freelancer-dashboard'])">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" (click)="router.navigate(['/find-jobs'])">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" (click)="router.navigate(['/my-gigs'])">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item" (click)="router.navigate(['/freelancer-messages'])">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item" (click)="router.navigate(['/my-projects'])">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item" (click)="router.navigate(['/freelancer-earnings'])">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item" (click)="goToProfile()">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search jobs, projects, freelancers...">
+        </div>
+      </div>
+      
+      <div class="navbar-right">
+        <div class="profile-wrapper">
+          <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
+            <div class="profile-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
+              <span class="profile-role">Freelancer</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+            
+            <div class="dropdown-menu" *ngIf="showProfileMenu">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Settings Content -->
+    <div class="settings-page">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Manage your account preferences and notification settings.</p>
+      </div>
+
+      <!-- SECTION 1: Account Settings -->
+      <section class="settings-card">
+        <div class="card-header">
+          <h3><i class="fas fa-user-cog"></i> Account Settings</h3>
+        </div>
+        <div class="card-body">
+          <form (ngSubmit)="saveAccountSettings()">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email Address</label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  [(ngModel)]="accountSettings.email" 
+                  name="email"
+                  placeholder="Enter your email address"
+                >
+              </div>
+              <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input 
+                  type="tel" 
+                  id="phone" 
+                  [(ngModel)]="accountSettings.phone" 
+                  name="phone"
+                  placeholder="Enter your phone number"
+                >
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input 
+                  type="password" 
+                  id="newPassword" 
+                  [(ngModel)]="accountSettings.newPassword" 
+                  name="newPassword"
+                  placeholder="Enter new password"
+                >
+              </div>
+              <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input 
+                  type="password" 
+                  id="confirmPassword" 
+                  [(ngModel)]="accountSettings.confirmPassword" 
+                  name="confirmPassword"
+                  placeholder="Confirm new password"
+                >
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="save-btn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- SECTION 2: Notification Settings -->
+      <section class="settings-card">
+        <div class="card-header">
+          <h3><i class="fas fa-bell"></i> Notification Settings</h3>
+        </div>
+        <div class="card-body">
+          <div class="notification-list">
+            <div class="notification-item">
+              <div class="notification-info">
+                <label>Email Notifications</label>
+                <span class="notification-description">Receive email updates about your account activity</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="notifications.emailNotifications" name="emailNotifications">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="notification-item">
+              <div class="notification-info">
+                <label>Message Notifications</label>
+                <span class="notification-description">Get notified when you receive new messages</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="notifications.messageNotifications" name="messageNotifications">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="notification-item">
+              <div class="notification-info">
+                <label>Project Updates</label>
+                <span class="notification-description">Receive updates about your ongoing projects</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="notifications.projectUpdates" name="projectUpdates">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="notification-item">
+              <div class="notification-info">
+                <label>Payment Notifications</label>
+                <span class="notification-description">Get notified about payments and earnings</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="notifications.paymentNotifications" name="paymentNotifications">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: Privacy Settings -->
+      <section class="settings-card">
+        <div class="card-header">
+          <h3><i class="fas fa-shield-alt"></i> Privacy Settings</h3>
+        </div>
+        <div class="card-body">
+          <div class="privacy-section">
+            <!-- Profile Visibility -->
+            <div class="privacy-item">
+              <div class="privacy-info">
+                <label>Profile Visibility</label>
+                <span class="privacy-description">Control who can view your profile</span>
+              </div>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="profileVisibility" 
+                    value="public"
+                    [(ngModel)]="privacy.profileVisibility"
+                  >
+                  <span class="radio-text">Public</span>
+                </label>
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="profileVisibility" 
+                    value="private"
+                    [(ngModel)]="privacy.profileVisibility"
+                  >
+                  <span class="radio-text">Private</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Show Email to Clients -->
+            <div class="privacy-item">
+              <div class="privacy-info">
+                <label>Show Email to Clients</label>
+                <span class="privacy-description">Allow clients to see your email address</span>
+              </div>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="privacy.showEmailToClients" 
+                  name="showEmailToClients"
+                >
+                <span class="checkbox-custom"></span>
+              </label>
+            </div>
+
+            <!-- Show Phone Number -->
+            <div class="privacy-item">
+              <div class="privacy-info">
+                <label>Show Phone Number</label>
+                <span class="privacy-description">Allow clients to see your phone number</span>
+              </div>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="privacy.showPhoneNumber" 
+                  name="showPhoneNumber"
+                >
+                <span class="checkbox-custom"></span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="save-btn" (click)="updatePrivacySettings()">Update Privacy Settings</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+

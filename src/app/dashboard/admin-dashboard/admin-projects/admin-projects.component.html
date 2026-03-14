@@ -1,0 +1,133 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy Admin</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/manage-users" class="nav-item">
+        <i class="fas fa-users"></i> Users
+      </a>
+      <a routerLink="/admin-projects" class="nav-item active">
+        <i class="fas fa-project-diagram"></i> Projects
+      </a>
+      <a routerLink="/admin-revenue" class="nav-item">
+        <i class="fas fa-dollar-sign"></i> Revenue
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-shield-alt"></i> Security
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-title">
+        <h1>Projects Management</h1>
+        <p class="subtitle">View and manage all projects posted on the platform.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-btn">
+          <i class="fas fa-bell"></i>
+        </button>
+        <div class="user-avatar">
+          <i class="fas fa-user-shield"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- Projects Content -->
+    <section class="projects-section">
+      <!-- Search and Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-container">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            placeholder="Search projects by title, client, or ID..." 
+            [(ngModel)]="searchTerm"
+            (input)="searchProjects()"
+          >
+        </div>
+        <div class="filter-container">
+          <select [(ngModel)]="statusFilter" (change)="filterByStatus()">
+            <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Projects Table Card -->
+      <div class="projects-card">
+        <table class="projects-table">
+          <thead>
+            <tr>
+              <th>Project ID</th>
+              <th>Project Title</th>
+              <th>Client Name</th>
+              <th>Assigned Freelancer</th>
+              <th>Budget</th>
+              <th>Status</th>
+              <th>Posted Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let project of filteredProjects">
+              <td class="project-id">{{ project.projectId }}</td>
+              <td class="project-title">{{ project.title }}</td>
+              <td class="client-name">{{ project.clientName }}</td>
+              <td class="freelancer-name">{{ project.assignedFreelancer }}</td>
+              <td class="budget">{{ formatBudget(project.budget) }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="project.status.toLowerCase().replace(' ', '-')">
+                  {{ project.status }}
+                </span>
+              </td>
+              <td class="posted-date">{{ project.postedDate }}</td>
+              <td class="actions">
+                <button class="action-btn view-btn" (click)="viewProject(project)" title="View Project">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button 
+                  class="action-btn suspend-btn" 
+                  (click)="suspendProject(project)" 
+                  title="Suspend Project"
+                  *ngIf="project.status !== 'Cancelled'"
+                >
+                  <i class="fas fa-ban"></i>
+                </button>
+                <button class="action-btn delete-btn" (click)="deleteProject(project)" title="Delete Project">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="filteredProjects.length === 0">
+          <i class="fas fa-project-diagram"></i>
+          <p>No projects found</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+

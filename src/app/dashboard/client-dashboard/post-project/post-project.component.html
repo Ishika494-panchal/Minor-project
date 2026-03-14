@@ -1,0 +1,314 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/client-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/projects" class="nav-item">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a routerLink="/find-freelancers" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/client-payments" class="nav-item">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="header-left">
+        <button class="back-btn" (click)="onCancel()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1>Post a New Project</h1>
+      </div>
+      <div class="header-actions">
+        <!-- Notification Dropdown -->
+        <div class="notification-wrapper">
+          <button class="notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+          </button>
+          <div class="notification-dropdown" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-empty" *ngIf="notificationsList.length === 0">
+                <i class="fas fa-bell-slash"></i>
+                <p>No notifications yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Profile Dropdown -->
+        <div class="profile-wrapper">
+          <div class="user-avatar" (click)="toggleProfileMenu($event)">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="profile-dropdown" *ngIf="showProfileMenu">
+            <div class="dropdown-header">
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">{{ userData?.email?.split('@')[0] || 'Client' }}</span>
+                <span class="dropdown-user-email">{{ userData?.email || '' }}</span>
+              </div>
+            </div>
+            <div class="dropdown-menu">
+              <a (click)="goToProfile()">
+                <i class="fas fa-user"></i> View Profile
+              </a>
+              <a (click)="goToSettings()">
+                <i class="fas fa-cog"></i> Settings
+              </a>
+              <a href="#">
+                <i class="fas fa-question-circle"></i> Help / Support
+              </a>
+              <div class="dropdown-divider"></div>
+              <a (click)="logout()" class="logout-item">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Success/Error Messages -->
+    <div class="alert alert-success" *ngIf="successMessage">
+      <i class="fas fa-check-circle"></i> {{ successMessage }}
+    </div>
+    <div class="alert alert-danger" *ngIf="errorMessage">
+      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+    </div>
+
+    <!-- Project Form -->
+    <form class="project-form" (ngSubmit)="onSubmit()">
+      
+      <!-- Project Information Section -->
+      <section class="form-section">
+        <h2><i class="fas fa-info-circle"></i> Project Information</h2>
+        
+        <div class="form-group">
+          <label for="title">Project Title <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="title" 
+            [(ngModel)]="project.title" 
+            name="title"
+            placeholder="e.g., E-commerce Website Development"
+            required
+          >
+          <span class="help-text">Choose a clear, descriptive title for your project</span>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Project Description <span class="required">*</span></label>
+          <textarea 
+            id="description" 
+            [(ngModel)]="project.description" 
+            name="description"
+            rows="6"
+            placeholder="Describe your project in detail. Include requirements, deliverables, and any specific instructions..."
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="category">Category <span class="required">*</span></label>
+            <select 
+              id="category" 
+              [(ngModel)]="project.category" 
+              name="category"
+              required
+            >
+              <option value="" disabled>Select a category</option>
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Skills Required <span class="required">*</span></label>
+            <div class="skills-container">
+              <!-- Selected skills -->
+              <div class="selected-skills">
+                <span 
+                  class="skill-tag" 
+                  *ngFor="let skill of selectedSkills"
+                >
+                  {{ skill }}
+                  <button type="button" class="remove-skill" (click)="removeSkill(skill)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </span>
+              </div>
+              
+              <!-- Skill input -->
+              <div class="skill-input-wrapper">
+                <input 
+                  type="text" 
+                  [(ngModel)]="skillSearch" 
+                  name="skillSearch"
+                  (keydown)="onSkillKeydown($event)"
+                  (focus)="showSkillDropdown = true"
+(blur)="showSkillDropdown = false; $event.stopPropagation()"
+                  placeholder="Type to search skills..."
+                  class="skill-input"
+                >
+                <button type="button" class="add-skill-btn" (click)="toggleSkillDropdown()">
+                  <i class="fas fa-chevron-down"></i>
+                </button>
+              </div>
+              
+              <!-- Skills dropdown -->
+              <div class="skills-dropdown" *ngIf="showSkillDropdown">
+                <button 
+                  type="button"
+                  class="skill-option" 
+                  *ngFor="let skill of filteredSkills"
+                  (mousedown)="addSkill(skill)"
+                >
+                  {{ skill }}
+                </button>
+              </div>
+            </div>
+            <span class="help-text">Type a skill and press Enter to add</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+<label for="budget">Budget (INR) <span class="required">*</span></label>
+            <div class="input-with-prefix">
+              <span class="prefix">₹</span>
+              <input 
+                type="number" 
+                id="budget" 
+                [(ngModel)]="project.budget" 
+                name="budget"
+                min="1"
+                placeholder="e.g., 1000"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="deadline">Deadline <span class="required">*</span></label>
+            <input 
+              type="date" 
+              id="deadline" 
+              [(ngModel)]="project.deadline" 
+              name="deadline"
+              required
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- Project Details Section -->
+      <section class="form-section">
+        <h2><i class="fas fa-sliders-h"></i> Project Details</h2>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="experienceLevel">Experience Level Required</label>
+            <select 
+              id="experienceLevel" 
+              [(ngModel)]="project.experienceLevel" 
+              name="experienceLevel"
+            >
+              <option *ngFor="let level of experienceLevels" [value]="level">{{ level }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="projectType">Payment Type</label>
+            <select 
+              id="projectType" 
+              [(ngModel)]="project.projectType" 
+              name="projectType"
+            >
+              <option *ngFor="let type of projectTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Attachments Section -->
+      <section class="form-section">
+        <h2><i class="fas fa-paperclip"></i> Attachments</h2>
+        
+        <div class="form-group">
+          <div class="file-upload-area" 
+               (dragover)="$event.preventDefault()"
+               (drop)="$event.preventDefault()">
+            <input 
+              type="file" 
+              id="fileUpload" 
+              (change)="onFileSelected($event)"
+              multiple
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif"
+              class="file-input"
+            >
+            <label for="fileUpload" class="file-upload-label">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Drag & drop files here or click to browse</span>
+              <small>PDF, DOC, DOCX, PNG, JPG, GIF (Max 10MB each)</small>
+            </label>
+          </div>
+          
+          <!-- Selected files list -->
+          <div class="selected-files" *ngIf="selectedFiles.length > 0">
+            <h4>Attached Files:</h4>
+            <div class="file-item" *ngFor="let file of selectedFiles; let i = index">
+              <i class="fas fa-file"></i>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">{{ (file.size / 1024).toFixed(1) }} KB</span>
+              <button type="button" class="remove-file" (click)="removeFile(i)">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="onCancel()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="isSubmitting">
+          <i class="fas" [class.fa-paper-plane]="!isSubmitting" [class.fa-spinner]="isSubmitting" [class.fa-spin]="isSubmitting"></i>
+          {{ isSubmitting ? 'Posting...' : 'Post Project' }}
+        </button>
+      </div>
+
+    </form>
+  </main>
+</div>
+

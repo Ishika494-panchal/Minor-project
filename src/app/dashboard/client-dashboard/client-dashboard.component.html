@@ -1,0 +1,212 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item" routerLink="/client-dashboard">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/projects" class="nav-item">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a routerLink="/find-freelancers" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/client-payments" class="nav-item">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>Welcome back, {{ userData?.email?.split('@')[0] || 'Client' }}!</h1>
+      <div class="header-actions">
+        <a routerLink="/post-project" class="post-project-btn">
+          <i class="fas fa-plus"></i> Post a Project
+        </a>
+        
+        <!-- Notification Dropdown -->
+        <div class="notification-wrapper">
+<button class="notification-btn" (click)="goToNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+          <div class="notification-dropdown" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-item" *ngFor="let notification of notificationsList" [class.unread]="!notification.read">
+                <div class="notification-icon" [ngClass]="notification.type">
+                  <i [class]="getNotificationIcon(notification.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notification.message }}</p>
+                  <span class="notification-time">{{ notification.time }}</span>
+                </div>
+              </div>
+              <div class="notification-empty" *ngIf="notificationsList.length === 0">
+                <i class="fas fa-bell-slash"></i>
+                <p>No notifications yet</p>
+              </div>
+            </div>
+            <div class="notification-footer">
+              <a href="#">View All Notifications</a>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Profile Dropdown -->
+        <div class="profile-wrapper">
+          <div class="user-avatar" (click)="toggleProfileMenu($event)">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="profile-dropdown" *ngIf="showProfileMenu">
+            <div class="dropdown-header">
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">{{ userData?.email?.split('@')[0] || 'Client' }}</span>
+                <span class="dropdown-user-email">{{ userData?.email || '' }}</span>
+              </div>
+            </div>
+            <div class="dropdown-menu">
+              <a (click)="goToProfile()">
+                <i class="fas fa-user"></i> View Profile
+              </a>
+              <a (click)="goToSettings()">
+                <i class="fas fa-cog"></i> Settings
+              </a>
+              <a href="#">
+                <i class="fas fa-question-circle"></i> Help / Support
+              </a>
+              <div class="dropdown-divider"></div>
+              <a (click)="logout()" class="logout-item">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon active-projects">
+          <i class="fas fa-project-diagram"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.activeProjects }}</span>
+          <span class="stat-label">Active Projects</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon completed-projects">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.completedProjects }}</span>
+          <span class="stat-label">Completed</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon spent">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-info">
+<span class="stat-value">₹{{ stats.totalSpent }}</span>
+          <span class="stat-label">Total Spent</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon freelancers">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.activeFreelancers }}</span>
+          <span class="stat-label">Active Freelancers</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Projects -->
+    <section class="recent-projects">
+      <div class="section-header">
+        <h2>Your Projects</h2>
+        <button class="view-all-btn">View All</button>
+      </div>
+      <div class="projects-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Freelancer</th>
+              <th>Status</th>
+              <th>Budget</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let project of recentProjects">
+              <td>{{ project.title }}</td>
+              <td>{{ project.freelancer }}</td>
+              <td>
+                <span class="status-badge" [class.completed]="project.status === 'Completed'">
+                  {{ project.status }}
+                </span>
+              </td>
+<td>₹{{ project.budget }}</td>
+              <td>
+                <button class="action-btn">View</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="actions-grid">
+        <a routerLink="/post-project" class="action-card">
+          <i class="fas fa-plus-circle"></i>
+          <span>Post New Project</span>
+        </a>
+        <a routerLink="/find-freelancers" class="action-card">
+          <i class="fas fa-search"></i>
+          <span>Find Freelancers</span>
+        </a>
+        <a routerLink="/view-proposals" class="action-card">
+          <i class="fas fa-file-alt"></i>
+          <span>View Proposals</span>
+        </a>
+        <a routerLink="/payment-history" class="action-card">
+          <i class="fas fa-history"></i>
+          <span>Payment History</span>
+        </a>
+      </div>
+    </section>
+  </main>
+</div>
+

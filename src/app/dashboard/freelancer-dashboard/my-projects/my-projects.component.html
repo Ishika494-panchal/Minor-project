@@ -1,0 +1,224 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
+      <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" (click)="goToFindJobs()">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" (click)="goToMyGigs()">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item" (click)="goToMessages()">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item" (click)="goToEarnings()">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item" (click)="goToProfile()">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery" (keyup.enter)="search()">
+        </div>
+      </div>
+      
+      <div class="navbar-right">
+        <div class="notification-wrapper">
+          <button class="icon-btn notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+          
+          <!-- Notification Panel -->
+          <div class="notification-panel" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+                <div class="notification-icon" [ngClass]="notif.type">
+                  <i [class]="getNotificationIcon(notif.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notif.message }}</p>
+                  <span>{{ notif.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="profile-wrapper">
+          <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
+            <div class="profile-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
+              <span class="profile-role">Freelancer</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+            
+            <div class="dropdown-menu" *ngIf="showProfileMenu">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- My Projects Content -->
+    <div class="content-section">
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1>My Projects</h1>
+          <p>Manage and track all your freelance projects</p>
+        </div>
+      </div>
+
+      <!-- Projects Table Section -->
+      <div class="projects-table-container">
+        <table class="projects-table">
+          <thead>
+            <tr>
+              <th>Project Title</th>
+              <th>Client Name</th>
+              <th>Budget</th>
+              <th>Deadline</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let project of projects">
+              <td class="project-title">{{ project.title }}</td>
+              <td class="client-name">{{ project.clientName }}</td>
+              <td class="budget">₹{{ project.budget | number }}</td>
+              <td class="deadline">{{ project.deadline ? (project.deadline | date:'mediumDate') : '-' }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="getStatusClass(project.status)">
+                  {{ project.status }}
+                </span>
+              </td>
+              <td class="action-cell">
+                <div class="action-buttons">
+                  <button type="button" class="action-btn view-btn" (click)="viewProject(project, $event)">
+                    <i class="fas fa-eye"></i> View Project
+                  </button>
+                  <button
+                    type="button"
+                    class="action-btn submit-btn"
+                    (click)="submitWork(project, $event)"
+                    [disabled]="project.status !== 'In Progress' || isSubmittingProject(project._id)">
+                    <i class="fas fa-paper-plane"></i>
+                    {{ isSubmittingProject(project._id) ? 'Submitting...' : 'Submit Work' }}
+                  </button>
+                  <button type="button" class="action-btn message-btn" (click)="messageClient(project, $event)">
+                    <i class="fas fa-envelope"></i> Message Client
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="projects.length === 0">
+        <i class="fas fa-folder-open"></i>
+        <h4>No Projects Yet</h4>
+        <p>You don't have any projects at the moment.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" *ngIf="showProjectDetails" (click)="closeProjectDetails()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Project Details</h3>
+      <button type="button" class="close-btn" (click)="closeProjectDetails()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body" *ngIf="selectedProject">
+      <p><strong>Title:</strong> {{ selectedProject.title }}</p>
+      <p><strong>Client:</strong> {{ selectedProject.clientName }}</p>
+      <p><strong>Status:</strong> {{ selectedProject.status }}</p>
+      <p><strong>Description:</strong> {{ selectedProject.description || 'No description available.' }}</p>
+
+      <div class="hosted-link-form">
+        <label for="hostedLink"><strong>Hosted Link</strong></label>
+        <input
+          id="hostedLink"
+          type="url"
+          #hostedLinkField
+          [(ngModel)]="hostedLinkInput"
+          placeholder="https://your-deployed-app-link.com"
+        />
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="action-btn save-link-btn"
+          (click)="saveHostedLink($event, hostedLinkField.value)"
+          [disabled]="savingLink || !canEditHostedLink(selectedProject)">
+          {{ savingLink ? 'Saving...' : 'Save Hosted Link' }}
+        </button>
+        <button
+          type="button"
+          class="action-btn open-link-btn"
+          (click)="openHostedLink(selectedProject.submissionHostedLink || hostedLinkInput, $event)">
+          Open Hosted Link
+        </button>
+      </div>
+
+      <p class="submission-message" *ngIf="submissionMessage">{{ submissionMessage }}</p>
+    </div>
+  </div>
+</div>
+

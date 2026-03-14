@@ -1,0 +1,190 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/client-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/projects" class="nav-item">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a routerLink="/find-freelancers" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/client-payments" class="nav-item">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>View Proposals</h1>
+      <div class="header-actions">
+        <a routerLink="/post-project" class="post-project-btn">
+          <i class="fas fa-plus"></i> Post a Project
+        </a>
+        
+        <!-- Notification Dropdown -->
+        <div class="notification-wrapper">
+          <button class="notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+          </button>
+          <div class="notification-dropdown" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-empty" *ngIf="notificationsList.length === 0">
+                <i class="fas fa-bell-slash"></i>
+                <p>No notifications yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Profile Dropdown -->
+        <div class="profile-wrapper">
+          <div class="user-avatar" (click)="toggleProfileMenu($event)">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="profile-dropdown" *ngIf="showProfileMenu">
+            <div class="dropdown-header">
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">{{ userData?.email?.split('@')[0] || 'Client' }}</span>
+                <span class="dropdown-user-email">{{ userData?.email || '' }}</span>
+              </div>
+            </div>
+            <div class="dropdown-menu">
+              <a (click)="goToProfile()">
+                <i class="fas fa-user"></i> View Profile
+              </a>
+              <a (click)="goToSettings()">
+                <i class="fas fa-cog"></i> Settings
+              </a>
+              <a href="#">
+                <i class="fas fa-question-circle"></i> Help / Support
+              </a>
+              <div class="dropdown-divider"></div>
+              <a (click)="logout()" class="logout-item">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Proposals Section -->
+    <section class="proposals-section">
+      <div class="section-header">
+        <h2>Freelancer Proposals</h2>
+        <span class="proposal-count">{{ proposals.length }} Proposals</span>
+      </div>
+
+      <div class="notification-empty" *ngIf="isLoading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading proposals...</p>
+      </div>
+
+      <div class="notification-empty" *ngIf="!isLoading && errorMessage">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>{{ errorMessage }}</p>
+      </div>
+
+      <div class="proposals-table-container" *ngIf="!isLoading && !errorMessage && proposals.length > 0; else noProposals">
+        <table class="proposals-table">
+          <thead>
+            <tr>
+              <th>Freelancer</th>
+              <th>Rating</th>
+              <th>Proposed Budget</th>
+              <th>Delivery Time</th>
+              <th>Proposal Message</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let proposal of proposals">
+              <td class="freelancer-cell">
+                <div class="freelancer-info">
+                  <div class="freelancer-avatar">
+                    <i class="fas fa-user"></i>
+                  </div>
+                  <div class="freelancer-details">
+                    <span class="freelancer-name">{{ proposal.freelancerName }}</span>
+                    <span class="project-title">{{ proposal.projectTitle }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="rating-cell">
+                <div class="rating">
+                  <i class="fas fa-star"></i>
+                  <span>{{ proposal.rating }}</span>
+                </div>
+              </td>
+              <td class="budget-cell">
+<span class="budget">₹{{ proposal.proposedBudget | number }}</span>
+              </td>
+              <td class="delivery-cell">
+                <span class="delivery-time">{{ proposal.deliveryTime }} days</span>
+              </td>
+              <td class="message-cell">
+                <div class="proposal-message" [title]="proposal.proposalMessage">
+                  {{ proposal.proposalMessage.length > 100 ? proposal.proposalMessage.substring(0, 100) + '...' : proposal.proposalMessage }}
+                </div>
+              </td>
+              <td class="actions-cell">
+                <div class="action-buttons">
+                  <button class="action-btn view-profile-btn" (click)="viewProfile(proposal.freelancerId)">
+                    <i class="fas fa-user"></i> View Profile
+                  </button>
+                  <button class="action-btn accept-btn" (click)="acceptProposal(proposal)" *ngIf="proposal.status === 'pending'">
+                    <i class="fas fa-check"></i> Accept
+                  </button>
+                  <button class="action-btn reject-btn" (click)="rejectProposal(proposal)" *ngIf="proposal.status === 'pending'">
+                    <i class="fas fa-times"></i> Reject
+                  </button>
+                  <span class="status-badge" [class.accepted]="proposal.status === 'accepted'" [class.rejected]="proposal.status === 'rejected'" *ngIf="proposal.status !== 'pending'">
+                    {{ getStatusLabel(proposal.status) }}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #noProposals>
+        <div class="no-proposals" *ngIf="!isLoading && !errorMessage">
+          <i class="fas fa-file-alt"></i>
+          <h3>No Proposals Yet</h3>
+          <p>You haven't received any proposals from freelancers yet.</p>
+          <a routerLink="/post-project" class="post-project-link">Post a Project</a>
+        </div>
+      </ng-template>
+    </section>
+  </main>
+</div>
+

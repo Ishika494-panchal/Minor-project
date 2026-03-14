@@ -1,0 +1,282 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy Admin</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/manage-users" class="nav-item active">
+        <i class="fas fa-users"></i> Users
+      </a>
+      <a routerLink="/admin-projects" class="nav-item">
+        <i class="fas fa-project-diagram"></i> Projects
+      </a>
+      <a routerLink="/admin-revenue" class="nav-item">
+        <i class="fas fa-dollar-sign"></i> Revenue
+      </a>
+      <a routerLink="/admin-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/admin-security" class="nav-item">
+        <i class="fas fa-shield-alt"></i> Security
+      </a>
+      <a routerLink="/admin-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-title">
+        <h1>Manage Users</h1>
+        <p class="subtitle">Manage all registered users on the platform.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-btn">
+          <i class="fas fa-bell"></i>
+        </button>
+        <div class="user-avatar">
+          <i class="fas fa-user-shield"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- Users Content -->
+    <section class="users-section">
+      <!-- Search and Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-container">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            placeholder="Search users by name or email..." 
+            [(ngModel)]="searchTerm"
+            (input)="searchUsers()"
+          >
+        </div>
+        <div class="filter-group">
+          <div class="filter-container">
+            <label>Role:</label>
+            <select [(ngModel)]="roleFilter" (change)="filterByRole()">
+              <option *ngFor="let role of roleOptions" [value]="role">{{ role }}</option>
+            </select>
+          </div>
+          <div class="filter-container">
+            <label>Status:</label>
+            <select [(ngModel)]="statusFilter" (change)="filterByStatus()">
+              <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Table Card -->
+      <div class="users-card">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Joined Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of paginatedUsers">
+              <td class="user-id">{{ user.id }}</td>
+              <td class="user-name">{{ user.name }}</td>
+              <td class="user-email">
+                <a [href]="'mailto:' + user.email">{{ user.email }}</a>
+              </td>
+              <td>
+                <span class="role-badge" [ngClass]="user.role.toLowerCase()">
+                  {{ user.role }}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge" [ngClass]="user.status.toLowerCase()">
+                  {{ user.status }}
+                </span>
+              </td>
+              <td class="joined-date">{{ user.joinedDate }}</td>
+              <td class="actions">
+                <button class="action-btn view-btn" (click)="viewProfile(user)" title="View Profile">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn edit-btn" (click)="openEditModal(user)" title="Edit User">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button 
+                  class="action-btn activate-btn" 
+                  (click)="activateUser(user)" 
+                  title="Activate User"
+                  *ngIf="user.status !== 'Active'"
+                >
+                  <i class="fas fa-check-circle"></i>
+                </button>
+                <button 
+                  class="action-btn suspend-btn" 
+                  (click)="suspendUser(user)" 
+                  title="Suspend User"
+                  *ngIf="user.status === 'Active'"
+                >
+                  <i class="fas fa-ban"></i>
+                </button>
+                <button 
+                  class="action-btn block-btn" 
+                  (click)="blockUser(user)" 
+                  title="Block User"
+                  *ngIf="user.status !== 'Blocked'"
+                >
+                  <i class="fas fa-lock"></i>
+                </button>
+                <button class="action-btn delete-btn" (click)="deleteUser(user)" title="Delete User">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="filteredUsers.length === 0">
+          <i class="fas fa-users"></i>
+          <p>No users found</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" *ngIf="totalPages > 1">
+          <button 
+            class="pagination-btn" 
+            (click)="previousPage()" 
+            [disabled]="currentPage === 1"
+          >
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <div class="page-numbers">
+            <button 
+              *ngFor="let page of [].constructor(totalPages); let i = index" 
+              class="page-btn" 
+              [class.active]="currentPage === i + 1"
+              (click)="goToPage(i + 1)"
+            >
+              {{ i + 1 }}
+            </button>
+          </div>
+          <button 
+            class="pagination-btn" 
+            (click)="nextPage()" 
+            [disabled]="currentPage === totalPages"
+          >
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+        
+        <!-- Results Info -->
+        <div class="results-info" *ngIf="filteredUsers.length > 0">
+          Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} of {{ filteredUsers.length }} users
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit User</h2>
+      <button class="close-btn" (click)="closeEditModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form (ngSubmit)="saveUser()">
+        <div class="form-group">
+          <label for="userId">User ID</label>
+          <input 
+            type="text" 
+            id="userId" 
+            [(ngModel)]="editForm.id" 
+            name="userId" 
+            disabled
+          >
+        </div>
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input 
+            type="text" 
+            id="name" 
+            [(ngModel)]="editForm.name" 
+            name="name" 
+            required
+          >
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input 
+            type="email" 
+            id="email" 
+            [(ngModel)]="editForm.email" 
+            name="email" 
+            required
+          >
+        </div>
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select 
+            id="role" 
+            [(ngModel)]="editForm.role" 
+            name="role"
+          >
+            <option value="Client">Client</option>
+            <option value="Freelancer">Freelancer</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="status">Status</label>
+          <select 
+            id="status" 
+            [(ngModel)]="editForm.status" 
+            name="status"
+          >
+            <option value="Active">Active</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Blocked">Blocked</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="joinedDate">Join Date</label>
+          <input 
+            type="text" 
+            id="joinedDate" 
+            [(ngModel)]="editForm.joinedDate" 
+            name="joinedDate" 
+            disabled
+          >
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeEditModal()">Cancel</button>
+          <button type="submit" class="btn-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+

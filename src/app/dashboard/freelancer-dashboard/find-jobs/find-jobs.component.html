@@ -1,0 +1,312 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
+      <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" (click)="goToMyGigs()">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item" (click)="goToMessages()">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item" (click)="goToProjects()">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item" (click)="goToEarnings()">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item" (click)="goToProfile()">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery" (keyup.enter)="search()">
+        </div>
+      </div>
+      
+      <div class="navbar-right">
+        <div class="notification-wrapper">
+          <button class="icon-btn notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+          </button>
+          
+          <!-- Notification Panel -->
+          <div class="notification-panel" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+                <div class="notification-icon" [ngClass]="notif.type">
+                  <i [class]="getNotificationIcon(notif.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notif.message }}</p>
+                  <span>{{ notif.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="profile-wrapper">
+          <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
+            <div class="profile-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
+              <span class="profile-role">Freelancer</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+            
+            <div class="dropdown-menu" *ngIf="showProfileMenu">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Find Jobs Content -->
+    <div class="content-section">
+      <!-- Page Title -->
+      <div class="page-header">
+        <h1>Find Jobs</h1>
+        <p>Browse available jobs that match your skills</p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="search-section">
+        <div class="main-search-bar">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            placeholder="Search jobs, skills, or keywords..." 
+            [(ngModel)]="searchQuery"
+            (keyup.enter)="searchJobs()"
+          >
+          <button class="search-btn" (click)="searchJobs()">Search</button>
+        </div>
+      </div>
+
+      <!-- Two Column Layout -->
+      <div class="jobs-layout">
+        <!-- Left Side - Filters Panel -->
+        <aside class="filters-panel">
+          <div class="filters-card">
+            <div class="filter-section">
+              <h3 class="filter-title">Category</h3>
+              <div class="filter-options">
+                <label class="filter-checkbox" *ngFor="let category of categoryOptions">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isCategorySelected(category)"
+                    (change)="toggleCategory(category)"
+                  >
+                  <span class="checkmark"></span>
+                  <span class="filter-label">{{ category }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="filter-section">
+              <h3 class="filter-title">Budget</h3>
+              <div class="filter-options">
+                <label class="filter-checkbox" *ngFor="let budget of budgetOptions">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isBudgetSelected(budget.label)"
+                    (change)="toggleBudget(budget.label)"
+                  >
+                  <span class="checkmark"></span>
+                  <span class="filter-label">{{ budget.label }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="filter-section">
+              <h3 class="filter-title">Experience Level</h3>
+              <div class="filter-options">
+                <label class="filter-checkbox" *ngFor="let level of experienceOptions">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isExperienceSelected(level)"
+                    (change)="toggleExperience(level)"
+                  >
+                  <span class="checkmark"></span>
+                  <span class="filter-label">{{ level }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right Side - Job Listings -->
+        <div class="job-listings">
+          <div class="results-header">
+            <span class="results-count">{{ filteredJobs.length }} jobs found</span>
+          </div>
+
+          <!-- Job Cards -->
+          <div class="job-cards-container">
+            <div class="job-card" *ngFor="let job of filteredJobs">
+              <div class="job-card-header">
+                <h3 class="job-title">{{ job.title }}</h3>
+                <span class="job-posted">{{ job.postedTime }}</span>
+              </div>
+              
+              <p class="job-description">{{ job.description }}</p>
+              
+              <div class="job-budget">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>₹{{ job.budget | number }}</span>
+              </div>
+              
+              <div class="job-skills">
+                <span class="skill-tag" *ngFor="let skill of job.skills">{{ skill }}</span>
+              </div>
+              <div class="job-card-footer">
+                <button class="btn-apply" (click)="openApplyModal(job)" [disabled]="job.applied || pendingProposalJobIds.has(job._id)">
+                  <i class="fas fa-paper-plane"></i>
+                  {{ job.applied ? 'Applied' : (pendingProposalJobIds.has(job._id) ? 'Applying...' : 'Apply Now') }}
+                </button>
+                <button
+                  class="btn-save"
+                  [class.saved]="isJobSaved(job._id)"
+                  (click)="toggleSaveJob(job._id)"
+                >
+                  <i [class]="isJobSaved(job._id) ? 'fas fa-heart' : 'far fa-heart'"></i>
+                  {{ isJobSaved(job._id) ? 'Saved' : 'Save Job' }}
+                </button>
+              </div>
+
+              <div class="inline-apply-panel" *ngIf="showApplyModal && selectedJob?._id === job._id">
+                <div class="inline-apply-header">
+                  <h4>Apply for {{ job.title }}</h4>
+                  <button class="close-btn" (click)="closeApplyModal()" [disabled]="isSubmittingProposal">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+
+                <form (ngSubmit)="submitProposal()">
+                  <div class="form-group">
+                    <label>Proposal Message *<span class="required">*</span></label>
+                    <textarea
+                      [(ngModel)]="proposalForm.proposalText"
+                      name="proposalText"
+                      rows="5"
+                      placeholder="Tell the client why you're perfect for this project..."
+                      [disabled]="isSubmittingProposal"
+                      required
+                    ></textarea>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Bid Amount *<span class="required">*</span></label>
+                      <input
+                        type="number"
+                        [(ngModel)]="proposalForm.bidAmount"
+                        name="bidAmount"
+                        placeholder="₹5000"
+                        min="1"
+                        [disabled]="isSubmittingProposal"
+                        required
+                      >
+                    </div>
+                    <div class="form-group">
+                      <label>Delivery Time (days) *<span class="required">*</span></label>
+                      <input
+                        type="number"
+                        [(ngModel)]="proposalForm.deliveryTime"
+                        name="deliveryTime"
+                        placeholder="30"
+                        min="1"
+                        [disabled]="isSubmittingProposal"
+                        required
+                      >
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Portfolio Link (Optional)</label>
+                    <input
+                      type="url"
+                      [(ngModel)]="proposalForm.portfolioLink"
+                      name="portfolioLink"
+                      placeholder="https://your-portfolio.com/project"
+                      [disabled]="isSubmittingProposal"
+                    >
+                  </div>
+                  <div class="form-group">
+                    <label>Attach File (Optional)</label>
+                    <input
+                      type="file"
+                      (change)="proposalForm.file = $event.target.files ? $event.target.files[0] : null"
+                      accept=".pdf,.doc,.docx,.jpg,.png"
+                      [disabled]="isSubmittingProposal"
+                    >
+                  </div>
+                  <div class="submit-status" *ngIf="submitStatus">{{ submitStatus }}</div>
+                  <div class="inline-apply-actions">
+                    <button type="button" class="btn-secondary" (click)="closeApplyModal()" [disabled]="isSubmittingProposal">Cancel</button>
+                    <button type="submit" class="btn-primary" [disabled]="isSubmittingProposal">
+                      {{ isSubmittingProposal ? 'Submitting...' : 'Submit Proposal' }}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="filteredJobs.length === 0">
+            <i class="fas fa-search"></i>
+            <h4>No Jobs Found</h4>
+            <p>Try adjusting your search or filters to find more jobs.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+

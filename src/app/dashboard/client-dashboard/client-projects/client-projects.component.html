@@ -1,0 +1,178 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item" routerLink="/client-dashboard">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/projects" class="nav-item active">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/client-payments" class="nav-item">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>Projects</h1>
+      <div class="header-actions">
+        <a routerLink="/post-project" class="post-project-btn">
+          <i class="fas fa-plus"></i> Post a Project
+        </a>
+      </div>
+    </header>
+
+    <!-- Projects Table -->
+    <section class="projects-section">
+      <div class="section-header">
+        <h2>Posted Projects</h2>
+        <span class="project-count">{{ projects.length }} Projects</span>
+      </div>
+
+      <div *ngIf="isLoading" class="detail-row">
+        <p>Loading projects...</p>
+      </div>
+
+      <div *ngIf="!isLoading && infoMessage" class="detail-row">
+        <p>{{ infoMessage }}</p>
+      </div>
+      
+      <div class="projects-table-container">
+        <table class="projects-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Freelancer</th>
+              <th>Budget</th>
+              <th>Status</th>
+              <th>Pay Now</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let project of projects">
+              <td class="project-title">{{ project.title }}</td>
+              <td>{{ project.freelancer }}</td>
+              <td class="budget">₹{{ project.budget | number }}</td>
+              <td>
+                <span class="status-badge" 
+                      [class.active]="project.status === 'booked'"
+                      [class.in-progress]="project.status === 'working' || project.status === 'submitted'"
+                      [class.completed]="project.status === 'submitted'">
+                  {{ project.status }}
+                </span>
+              </td>
+              <td>
+                <button class="action-btn" (click)="viewProject(project)" style="margin-right: 8px;">
+                  View
+                </button>
+                <button
+                  class="action-btn"
+                  (click)="messageProjectFreelancer(project)"
+                  [disabled]="!project.freelancerId"
+                  [title]="project.freelancerId ? 'Message freelancer' : 'Freelancer is pending'"
+                  style="margin-right: 8px;">
+                  Message User
+                </button>
+                <button 
+                  class="action-btn pay-btn" 
+                  (click)="initiatePayment(project)"
+                  [disabled]="isAnyPaymentInProgress() || !canPay(project)"
+                  [style.opacity]="canPay(project) ? '1' : '0.5'"
+                  [title]="project.paymentStatus === 'Paid' ? 'Payment completed' : (canPay(project) ? 'Pay for submitted work' : 'Pay Now is locked initially')">
+                  {{ isProcessingPayment(project) ? 'Processing...' : (project.paymentStatus === 'Paid' ? 'Paid' : (canPay(project) ? 'Pay Now' : 'Pay Locked')) }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Project Details Modal -->
+<div class="modal-overlay" *ngIf="showProjectDetails" (click)="closeProjectDetails()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Project Details</h2>
+      <button class="close-btn" (click)="closeProjectDetails()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body" *ngIf="selectedProject">
+      <div class="detail-row">
+        <label>Project Title</label>
+        <p>{{ selectedProject.title }}</p>
+      </div>
+      <div class="detail-row">
+        <label>Description</label>
+        <p>{{ selectedProject.description }}</p>
+      </div>
+      <div class="detail-row">
+        <label>Freelancer</label>
+        <p>{{ selectedProject.freelancer }}</p>
+      </div>
+      <div class="detail-row">
+        <label>Code Zip</label>
+        <p>{{ selectedProject.submissionCodeFileName || 'Not uploaded yet' }}</p>
+      </div>
+      <div class="detail-row">
+        <label>Hosted Link</label>
+        <p>{{ selectedProject.submissionHostedLink || 'Not uploaded yet' }}</p>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-row">
+          <label>Budget</label>
+<p class="budget-value">₹{{ selectedProject.budget | number }}</p>
+        </div>
+        <div class="detail-row">
+          <label>Timeline</label>
+          <p>{{ selectedProject.deadline | date:'mediumDate' }}</p>
+        </div>
+      </div>
+      <div class="detail-row">
+        <label>Project Status</label>
+        <span class="status-badge" 
+              [class.active]="selectedProject.status === 'booked'"
+              [class.in-progress]="selectedProject.status === 'working' || selectedProject.status === 'submitted'"
+              [class.completed]="selectedProject.status === 'submitted'">
+          {{ selectedProject.status }}
+        </span>
+      </div>
+      <div class="modal-actions">
+        <button class="message-btn" (click)="openHostedLink(selectedProject)">
+          <i class="fas fa-link"></i> Open Hosted Link
+        </button>
+        <button class="message-btn" (click)="messageFreelancer()">
+          <i class="fas fa-envelope"></i> Message User
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

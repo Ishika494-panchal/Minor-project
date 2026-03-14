@@ -1,0 +1,249 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <span class="brand-name">Skillzyy</span>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" (click)="goToDashboard()">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" routerLink="/find-jobs">
+        <i class="fas fa-search"></i>
+        <span>Find Jobs</span>
+      </a>
+      <a class="nav-item" routerLink="/my-gigs">
+        <i class="fas fa-briefcase"></i>
+        <span>My Gigs</span>
+      </a>
+      <a class="nav-item" routerLink="/freelancer-messages">
+        <i class="fas fa-envelope"></i>
+        <span>Messages</span>
+      </a>
+      <a class="nav-item" routerLink="/my-projects">
+        <i class="fas fa-folder"></i>
+        <span>Projects</span>
+      </a>
+      <a class="nav-item" routerLink="/freelancer-earnings">
+        <i class="fas fa-chart-line"></i>
+        <span>Earnings</span>
+      </a>
+      <a class="nav-item active">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </a>
+      <a class="nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="header-left">
+        <button class="back-btn" (click)="goToDashboard()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1>Profile</h1>
+      </div>
+      <div class="header-actions">
+        <button class="edit-btn" (click)="toggleEdit()">
+          <i class="fas fa-edit"></i> Edit Profile
+        </button>
+      </div>
+    </header>
+
+    <!-- Profile Content -->
+    <div class="profile-content" *ngIf="profile">
+      <!-- Profile Card - Centered -->
+      <div class="profile-card">
+        <!-- Top Section -->
+        <div class="profile-top-section">
+          <div class="profile-image-container">
+            <img [src]="profile.profilePicture" alt="Profile Picture" class="profile-image">
+            <span class="role-badge">Freelancer</span>
+          </div>
+          <h2 class="freelancer-name">{{ profile.fullName }}</h2>
+          <p class="professional-title">{{ profile.title }}</p>
+        </div>
+
+        <!-- Profile Information Section -->
+        <div class="profile-info-section">
+          <div class="info-row">
+            <div class="info-item">
+              <label><i class="fas fa-user"></i> Full Name</label>
+              <span>{{ profile.fullName }}</span>
+            </div>
+            <div class="info-item">
+              <label><i class="fas fa-envelope"></i> Email Address</label>
+              <span>{{ profile.email }}</span>
+            </div>
+          </div>
+
+          <div class="info-row">
+            <div class="info-item">
+              <label><i class="fas fa-phone"></i> Phone Number</label>
+              <span>{{ profile.phone }}</span>
+            </div>
+            <div class="info-item">
+              <label><i class="fas fa-map-marker-alt"></i> Location</label>
+              <span>{{ profile.location }}</span>
+            </div>
+          </div>
+
+          <div class="info-row">
+            <div class="info-item full-width">
+              <label><i class="fas fa-tools"></i> Skills</label>
+              <div class="skills-container">
+                <span class="skill-tag" *ngFor="let skill of profile.skills">{{ skill }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-row">
+            <div class="info-item full-width">
+              <label><i class="fas fa-info-circle"></i> Experience / About Me</label>
+              <p class="about-text">{{ profile.aboutMe }}</p>
+            </div>
+          </div>
+
+          <div class="info-row">
+            <div class="info-item full-width">
+              <label><i class="fas fa-link"></i> Portfolio Link</label>
+              <a [href]="profile.portfolioLink" target="_blank" class="portfolio-link">
+                <i class="fas fa-external-link-alt"></i> {{ profile.portfolioLink }}
+              </a>
+            </div>
+          </div>
+
+          <!-- Stats Row -->
+          <div class="stats-row">
+            <div class="stat-item">
+              <span class="stat-value">{{ profile.completedProjects }}</span>
+              <span class="stat-label">Completed Projects</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ profile.activeProjects }}</span>
+              <span class="stat-label">Active Projects</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">₹{{ profile.totalEarnings | number }}</span>
+              <span class="stat-label">Total Earnings</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ profile.memberSince }}</span>
+              <span class="stat-label">Member Since</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="profile-actions">
+          <button class="action-btn edit-profile-btn" (click)="toggleEdit()">
+            <i class="fas fa-edit"></i> Edit Profile
+          </button>
+          <button class="action-btn save-changes-btn" (click)="saveProfile()">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="!profile">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Loading profile...</p>
+    </div>
+  </main>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-overlay" *ngIf="isEditing" (click)="toggleEdit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit Profile</h2>
+      <button class="close-btn" (click)="toggleEdit()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body" *ngIf="profile">
+      <form (ngSubmit)="saveProfile()">
+        <!-- Profile Picture Upload -->
+        <div class="profile-picture-section">
+          <label>Profile Picture</label>
+          <div class="picture-upload-container">
+            <div class="current-picture">
+              <img [src]="imagePreview || profile.profilePicture" alt="Profile Picture" class="preview-avatar">
+            </div>
+            <div class="upload-controls">
+              <input type="file" id="profilePicture" (change)="onFileSelected($event)" accept="image/*" class="file-input">
+              <label for="profilePicture" class="file-label">
+                <i class="fas fa-camera"></i> Choose Photo
+              </label>
+              <p class="upload-hint">Supported: JPG, PNG, GIF</p>
+              <button type="button" class="remove-btn" *ngIf="selectedFile" (click)="removeSelectedImage()">
+                <i class="fas fa-times"></i> Remove
+              </button>
+            </div>
+          </div>
+          <p class="selected-file-name" *ngIf="selectedFile">
+            <i class="fas fa-file-image"></i> {{ selectedFile.name }}
+          </p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" [(ngModel)]="profile.fullName" name="fullName">
+          </div>
+          <div class="form-group">
+            <label>Professional Title</label>
+            <input type="text" [(ngModel)]="profile.title" name="title">
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" [(ngModel)]="profile.email" name="email">
+          </div>
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel" [(ngModel)]="profile.phone" name="phone">
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" [(ngModel)]="profile.location" name="location">
+          </div>
+          <div class="form-group">
+            <label>Portfolio Link</label>
+            <input type="url" [(ngModel)]="profile.portfolioLink" name="portfolioLink" placeholder="https://">
+          </div>
+          <div class="form-group full-width">
+            <label>Skills (comma separated)</label>
+            <input type="text" [(ngModel)]="skillsString" name="skills" placeholder="Angular, Node.js, UI Design">
+          </div>
+          <div class="form-group full-width">
+            <label>About Me / Experience</label>
+            <textarea [(ngModel)]="profile.aboutMe" name="aboutMe" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" (click)="toggleEdit()">Cancel</button>
+          <button type="submit" class="save-btn">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+

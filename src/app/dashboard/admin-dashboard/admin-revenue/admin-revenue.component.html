@@ -1,0 +1,253 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy Admin</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/manage-users" class="nav-item">
+        <i class="fas fa-users"></i> Users
+      </a>
+      <a routerLink="/admin-projects" class="nav-item">
+        <i class="fas fa-project-diagram"></i> Projects
+      </a>
+      <a routerLink="/admin-revenue" class="nav-item active">
+        <i class="fas fa-dollar-sign"></i> Revenue
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-shield-alt"></i> Security
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-title">
+        <h1>Revenue Management</h1>
+        <p class="subtitle">Track platform earnings and transaction details.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-btn">
+          <i class="fas fa-bell"></i>
+        </button>
+        <div class="user-avatar">
+          <i class="fas fa-user-shield"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- Revenue Summary Cards -->
+    <section class="summary-section">
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-icon green">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="card-content">
+            <span class="card-title">Total Revenue</span>
+            <span class="card-value">{{ formatCurrency(revenueSummary.totalRevenue) }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon blue">
+            <i class="fas fa-calendar-month"></i>
+          </div>
+          <div class="card-content">
+            <span class="card-title">This Month</span>
+            <span class="card-value">{{ formatCurrency(revenueSummary.revenueThisMonth) }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon purple">
+            <i class="fas fa-calendar-week"></i>
+          </div>
+          <div class="card-content">
+            <span class="card-title">This Week</span>
+            <span class="card-value">{{ formatCurrency(revenueSummary.revenueThisWeek) }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon orange">
+            <i class="fas fa-percentage"></i>
+          </div>
+          <div class="card-content">
+            <span class="card-title">Platform Commission</span>
+            <span class="card-value">{{ formatCurrency(revenueSummary.platformCommission) }}</span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="card-icon red">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="card-content">
+            <span class="card-title">Pending Payments</span>
+            <span class="card-value">{{ formatCurrency(revenueSummary.pendingPayments) }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Revenue Chart Section -->
+    <section class="chart-section">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h2>Revenue Growth</h2>
+          <span class="chart-subtitle">Monthly revenue over time</span>
+        </div>
+        <div class="chart-container">
+          <div class="chart-bars">
+            <div class="chart-bar" *ngFor="let month of monthlyRevenue">
+              <div class="bar-wrapper">
+                <div class="bar-fill" [style.height.%]="getChartHeight(month.amount)">
+                  <span class="bar-amount">{{ formatCurrency(month.amount) }}</span>
+                </div>
+              </div>
+              <span class="bar-label">{{ month.month }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Transactions -->
+    <section class="recent-section">
+      <div class="section-card">
+        <div class="section-header">
+          <h2>Recent Transactions</h2>
+          <span class="record-count">{{ recentTransactions.length }} latest</span>
+        </div>
+        <div class="recent-list">
+          <div class="recent-item" *ngFor="let transaction of recentTransactions">
+            <div class="recent-info">
+              <span class="recent-id">{{ transaction.id }}</span>
+              <span class="recent-project">{{ transaction.projectTitle }}</span>
+              <span class="recent-names">
+                {{ transaction.clientName }} → {{ transaction.freelancerName }}
+              </span>
+            </div>
+            <div class="recent-amount">
+              <span class="amount-value">{{ formatCurrency(transaction.amount) }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(transaction.status)">
+                {{ transaction.status }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transactions Table Section -->
+    <section class="table-section">
+      <div class="table-card">
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input 
+              type="text" 
+              placeholder="Search by ID, client, freelancer, project..." 
+              [(ngModel)]="searchTerm"
+              (input)="applyFilters()"
+            >
+          </div>
+          
+          <div class="filter-group">
+            <select [(ngModel)]="statusFilter" (change)="applyFilters()">
+              <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
+            </select>
+            
+            <select [(ngModel)]="methodFilter" (change)="applyFilters()">
+              <option *ngFor="let method of methodOptions" [value]="method">{{ method }}</option>
+            </select>
+            
+            <input 
+              type="date" 
+              [(ngModel)]="dateFrom" 
+              (change)="applyFilters()"
+              placeholder="From Date"
+            >
+            
+            <input 
+              type="date" 
+              [(ngModel)]="dateTo" 
+              (change)="applyFilters()"
+              placeholder="To Date"
+            >
+            
+            <button class="clear-btn" (click)="clearFilters()">
+              <i class="fas fa-times"></i> Clear
+            </button>
+            
+            <button class="export-btn" (click)="exportToCSV()">
+              <i class="fas fa-download"></i> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+          <table class="transactions-table">
+            <thead>
+              <tr>
+                <th>Transaction ID</th>
+                <th>Client Name</th>
+                <th>Freelancer Name</th>
+                <th>Project Title</th>
+                <th>Amount</th>
+                <th>Commission</th>
+                <th>Payment Method</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let transaction of filteredTransactions">
+                <td class="txn-id">{{ transaction.id }}</td>
+                <td>{{ transaction.clientName }}</td>
+                <td>{{ transaction.freelancerName }}</td>
+                <td class="project-title">{{ transaction.projectTitle }}</td>
+                <td class="amount">{{ formatCurrency(transaction.amount) }}</td>
+                <td class="commission">{{ formatCurrency(transaction.commission) }}</td>
+                <td>{{ transaction.paymentMethod }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusClass(transaction.status)">
+                    {{ transaction.status }}
+                  </span>
+                </td>
+                <td class="date">{{ transaction.date }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="filteredTransactions.length === 0">
+            <i class="fas fa-receipt"></i>
+            <p>No transactions found</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+

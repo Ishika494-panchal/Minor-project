@@ -1,0 +1,186 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Skillzyy</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/client-dashboard" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a routerLink="/projects" class="nav-item">
+        <i class="fas fa-briefcase"></i> Projects
+      </a>
+      <a routerLink="/find-freelancers" class="nav-item">
+        <i class="fas fa-search"></i> Find Freelancers
+      </a>
+      <a routerLink="/client-messages" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a routerLink="/client-payments" class="nav-item">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+      <a routerLink="/client-profile" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a routerLink="/client-settings" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>Payment History</h1>
+      <div class="header-actions">
+        <a routerLink="/post-project" class="post-project-btn">
+          <i class="fas fa-plus"></i> Post a Project
+        </a>
+        
+        <!-- Notification Dropdown -->
+        <div class="notification-wrapper">
+          <button class="notification-btn" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+          </button>
+          <div class="notification-dropdown" *ngIf="showNotifications">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list">
+              <div class="notification-empty" *ngIf="notificationsList.length === 0">
+                <i class="fas fa-bell-slash"></i>
+                <p>No notifications yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Profile Dropdown -->
+        <div class="profile-wrapper">
+          <div class="user-avatar" (click)="toggleProfileMenu($event)">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="profile-dropdown" *ngIf="showProfileMenu">
+            <div class="dropdown-header">
+              <div class="dropdown-user-info">
+                <span class="dropdown-user-name">{{ userData?.email?.split('@')[0] || 'Client' }}</span>
+                <span class="dropdown-user-email">{{ userData?.email || '' }}</span>
+              </div>
+            </div>
+            <div class="dropdown-menu">
+              <a (click)="goToProfile()">
+                <i class="fas fa-user"></i> View Profile
+              </a>
+              <a (click)="goToSettings()">
+                <i class="fas fa-cog"></i> Settings
+              </a>
+              <a href="#">
+                <i class="fas fa-question-circle"></i> Help / Support
+              </a>
+              <div class="dropdown-divider"></div>
+              <a (click)="logout()" class="logout-item">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon total-payments">
+          <i class="fas fa-receipt"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ payments.length }}</span>
+          <span class="stat-label">Total Transactions</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon total-amount">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-info">
+        <span class="stat-value">₹{{ totalAmount | number }}</span>
+          <span class="stat-label">Total Amount Paid</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon completed">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ payments.length }}</span>
+          <span class="stat-label">Completed Payments</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Payment History Table -->
+    <section class="history-section">
+      <div class="section-header">
+        <h2>Previous Payments</h2>
+        <span class="record-count">{{ payments.length }} records found</span>
+      </div>
+      
+      <div class="table-container">
+        <table class="payment-table">
+          <thead>
+            <tr>
+              <th>Project Title</th>
+              <th>Freelancer Name</th>
+              <th>Amount Paid</th>
+              <th>Payment Date</th>
+              <th>Payment Method</th>
+              <th>Payment Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let payment of payments">
+              <td class="project-title">{{ payment.projectTitle }}</td>
+              <td>
+                <div class="freelancer-cell">
+                  <i class="fas fa-user-circle"></i>
+                  {{ payment.freelancerName }}
+                </div>
+              </td>
+<td class="amount">₹{{ payment.amount | number }}</td>
+              <td class="date">{{ payment.date | date:'mediumDate' }}</td>
+              <td>
+                <span class="payment-method">
+                  <i class="fas fa-credit-card" *ngIf="payment.paymentMethod === 'Credit Card'"></i>
+                  <i class="fab fa-paypal" *ngIf="payment.paymentMethod === 'PayPal'"></i>
+                  <i class="fas fa-university" *ngIf="payment.paymentMethod === 'Bank Transfer'"></i>
+                  {{ payment.paymentMethod }}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge completed">
+                  <i class="fas fa-check"></i> {{ payment.status }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="payments.length === 0">
+              <td colspan="6" class="empty-message">
+                <i class="fas fa-inbox"></i>
+                <p>No payment history available</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+

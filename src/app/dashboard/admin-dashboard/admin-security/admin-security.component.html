@@ -1,0 +1,550 @@
+<div class="security-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
+      <h2>Security</h2>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item" [class.active]="activeTab === 'overview'" (click)="activeTab = 'overview'">
+        <i class="fas fa-shield-alt"></i>
+        <span>Overview</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === 'login_activity'" (click)="activeTab = 'login_activity'">
+        <i class="fas fa-sign-in-alt"></i>
+        <span>Login Activity</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === 'suspicious'" (click)="activeTab = 'suspicious'">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Suspicious</span>
+        <span class="badge warning" *ngIf="suspiciousActivities.length > 0">{{ suspiciousActivities.length }}</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === 'users'" (click)="activeTab = 'users'">
+        <i class="fas fa-users"></i>
+        <span>User Security</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
+        <i class="fas fa-user-shield"></i>
+        <span>Admin Access</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === '2fa'" (click)="activeTab = '2fa'">
+        <i class="fas fa-lock"></i>
+        <span>2FA Settings</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab === 'logs'" (click)="activeTab = 'logs'">
+        <i class="fas fa-history"></i>
+        <span>Security Logs</span>
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <h1>Security Dashboard</h1>
+      <div class="header-actions">
+        <span class="last-updated">Last updated: Just now</span>
+      </div>
+    </header>
+
+    <!-- Overview Tab -->
+    <section class="security-overview" *ngIf="activeTab === 'overview'">
+      <!-- Security Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon total">
+            <i class="fas fa-sign-in-alt"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ securityStats.totalLoginAttempts }}</span>
+            <span class="stat-label">Total Login Attempts</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon failed">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ securityStats.failedLoginAttempts }}</span>
+            <span class="stat-label">Failed Attempts</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon blocked">
+            <i class="fas fa-ban"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ securityStats.blockedUsers }}</span>
+            <span class="stat-label">Blocked Users</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon suspicious">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ securityStats.suspiciousActivities }}</span>
+            <span class="stat-label">Suspicious Activities</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon sessions">
+            <i class="fas fa-desktop"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ securityStats.activeAdminSessions }}</span>
+            <span class="stat-label">Active Admin Sessions</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions-section">
+        <h2>Quick Security Actions</h2>
+        <div class="actions-grid">
+          <div class="action-card" (click)="activeTab = 'users'">
+            <i class="fas fa-users-cog"></i>
+            <span>Manage User Security</span>
+          </div>
+          <div class="action-card" (click)="activeTab = 'admins'">
+            <i class="fas fa-user-shield"></i>
+            <span>Admin Access Control</span>
+          </div>
+          <div class="action-card" (click)="activeTab = '2fa'">
+            <i class="fas fa-shield-virus"></i>
+            <span>2FA Configuration</span>
+          </div>
+          <div class="action-card" (click)="activeTab = 'logs'">
+            <i class="fas fa-file-alt"></i>
+            <span>View All Logs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Suspicious Activity Preview -->
+      <div class="recent-suspicious" *ngIf="suspiciousActivities.length > 0">
+        <div class="section-header">
+          <h2>Recent Suspicious Activities</h2>
+          <button class="view-all-btn" (click)="activeTab = 'suspicious'">View All</button>
+        </div>
+        <div class="suspicious-list">
+          <div class="suspicious-item" *ngFor="let activity of suspiciousActivities.slice(0, 3)">
+            <div class="activity-icon" [class]="getSeverityClass(activity.severity)">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="activity-info">
+              <span class="activity-type">{{ getActivityTypeLabel(activity.type) }}</span>
+              <span class="activity-user">{{ activity.userName }}</span>
+              <span class="activity-desc">{{ activity.description }}</span>
+            </div>
+            <span class="activity-time">{{ activity.timestamp }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Login Activity Tab -->
+    <section class="login-activity" *ngIf="activeTab === 'login_activity'">
+      <div class="section-header">
+        <h2>Login Activity</h2>
+      </div>
+      
+      <!-- Filters -->
+      <div class="filters">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search by name, email, or IP..." [(ngModel)]="loginSearchQuery">
+        </div>
+        <div class="filter-buttons">
+          <button class="filter-btn" [class.active]="loginFilterStatus === 'all'" (click)="loginFilterStatus = 'all'">All</button>
+          <button class="filter-btn" [class.active]="loginFilterStatus === 'success'" (click)="loginFilterStatus = 'success'">Success</button>
+          <button class="filter-btn" [class.active]="loginFilterStatus === 'failed'" (click)="loginFilterStatus = 'failed'">Failed</button>
+        </div>
+      </div>
+
+      <!-- Activity Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User Name</th>
+              <th>Role</th>
+              <th>IP Address</th>
+              <th>Device</th>
+              <th>Browser</th>
+              <th>Login Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let activity of filteredLoginActivities">
+              <td>
+                <div class="user-cell">
+                  <span class="user-name">{{ activity.userName }}</span>
+                  <span class="user-email">{{ activity.email }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="role-badge" [class]="activity.role">{{ activity.role }}</span>
+              </td>
+              <td class="ip-address">{{ activity.ipAddress }}</td>
+              <td>{{ activity.device }}</td>
+              <td>{{ activity.browser }}</td>
+              <td>{{ activity.loginTime }}</td>
+              <td>
+                <span class="status-badge" [class]="activity.status">
+                  <i class="fas" [class.fa-check-circle]="activity.status === 'success'" [class.fa-times-circle]="activity.status === 'failed'"></i>
+                  {{ activity.status | titlecase }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Suspicious Activity Tab -->
+    <section class="suspicious-activity" *ngIf="activeTab === 'suspicious'">
+      <div class="section-header">
+        <h2>Suspicious Activity Monitoring</h2>
+      </div>
+
+      <div class="suspicious-list-full">
+        <div class="suspicious-card" *ngFor="let activity of suspiciousActivities">
+          <div class="card-header">
+            <div class="activity-type-badge" [class]="getSeverityClass(activity.severity)">
+              <i class="fas fa-exclamation-triangle"></i>
+              {{ getActivityTypeLabel(activity.type) }}
+            </div>
+            <span class="severity-badge" [class]="activity.severity">{{ activity.severity }}</span>
+          </div>
+          <div class="card-body">
+            <div class="activity-details">
+              <div class="detail-row">
+                <span class="label">User:</span>
+                <span class="value">{{ activity.userName }} ({{ activity.userEmail }})</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">IP Address:</span>
+                <span class="value ip-address">{{ activity.ipAddress }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Description:</span>
+                <span class="value">{{ activity.description }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Time:</span>
+                <span class="value">{{ activity.timestamp }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span class="status-badge" [class]="activity.status">{{ activity.status }}</span>
+            <div class="card-actions">
+              <button class="btn-action" (click)="resolveSuspiciousActivity(activity)" *ngIf="activity.status !== 'resolved'">
+                <i class="fas fa-check"></i> Mark Resolved
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="suspiciousActivities.length === 0">
+          <i class="fas fa-check-circle"></i>
+          <p>No suspicious activities detected</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- User Security Tab -->
+    <section class="user-security" *ngIf="activeTab === 'users'">
+      <div class="section-header">
+        <h2>User Security Management</h2>
+      </div>
+
+      <!-- Search -->
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search users..." [(ngModel)]="userSearchQuery">
+      </div>
+
+      <!-- Users Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>2FA</th>
+              <th>Last Login</th>
+              <th>Failed Attempts</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of filteredUsers">
+              <td>
+                <div class="user-cell">
+                  <span class="user-name">{{ user.name }}</span>
+                  <span class="user-email">{{ user.email }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="role-badge" [class]="user.role">{{ user.role }}</span>
+              </td>
+              <td>
+                <span class="status-badge" [class]="user.isBlocked ? 'blocked' : 'active'">
+                  <i class="fas" [class.fa-check-circle]="!user.isBlocked" [class.fa-ban]="user.isBlocked"></i>
+                  {{ user.isBlocked ? 'Blocked' : 'Active' }}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge" [class]="user.is2FAEnabled ? 'enabled' : 'disabled'">
+                  <i class="fas" [class.fa-check]="user.is2FAEnabled" [class.fa-times]="!user.is2FAEnabled"></i>
+                  {{ user.is2FAEnabled ? 'Enabled' : 'Disabled' }}
+                </span>
+              </td>
+              <td>{{ user.lastLogin }}</td>
+              <td>
+                <span class="failed-attempts" [class.high]="user.loginAttempts > 5">{{ user.loginAttempts }}</span>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button class="btn-icon" title="Block" *ngIf="!user.isBlocked" (click)="openModal('block', user)">
+                    <i class="fas fa-ban"></i>
+                  </button>
+                  <button class="btn-icon success" title="Unblock" *ngIf="user.isBlocked" (click)="openModal('unblock', user)">
+                    <i class="fas fa-unlock"></i>
+                  </button>
+                  <button class="btn-icon" title="Force Logout" (click)="openModal('force_logout', user)">
+                    <i class="fas fa-sign-out-alt"></i>
+                  </button>
+                  <button class="btn-icon" title="Reset Password" (click)="openModal('reset_password', user)">
+                    <i class="fas fa-key"></i>
+                  </button>
+                  <button class="btn-icon" title="Disable 2FA" *ngIf="user.is2FAEnabled" (click)="openModal('disable', user)">
+                    <i class="fas fa-shield-alt"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Admin Access Tab -->
+    <section class="admin-access" *ngIf="activeTab === 'admins'">
+      <div class="section-header">
+        <h2>Admin Access Control</h2>
+        <button class="btn-primary" (click)="openModal('add_admin')">
+          <i class="fas fa-plus"></i> Add Admin
+        </button>
+      </div>
+
+      <div class="admin-grid">
+        <div class="admin-card" *ngFor="let admin of adminUsers">
+          <div class="admin-avatar">
+            <i class="fas fa-user-shield"></i>
+          </div>
+          <div class="admin-info">
+            <h3>{{ admin.name }}</h3>
+            <p class="admin-email">{{ admin.email }}</p>
+            <div class="admin-meta">
+              <span class="role-badge" [class]="admin.role">{{ admin.role.replace('_', ' ') }}</span>
+              <span class="status-badge" [class]="admin.status">{{ admin.status }}</span>
+            </div>
+            <p class="last-login">Last login: {{ admin.lastLogin }}</p>
+          </div>
+          <div class="admin-permissions">
+            <h4>Permissions:</h4>
+            <div class="permission-tags">
+              <span class="permission-tag" *ngFor="let perm of admin.permissions">{{ perm }}</span>
+            </div>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-icon" title="Edit" (click)="openModal('edit_admin', admin)">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2FA Settings Tab -->
+    <section class="two-fa-settings" *ngIf="activeTab === '2fa'">
+      <div class="section-header">
+        <h2>Two-Factor Authentication Settings</h2>
+      </div>
+
+      <div class="settings-cards">
+        <div class="settings-card">
+          <div class="card-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="card-content">
+            <h3>Admin 2FA</h3>
+            <p>Enable two-factor authentication for admin accounts</p>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" [(ngModel)]="twoFactorSettings.admin2FAEnabled">
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-label">{{ twoFactorSettings.admin2FAEnabled ? 'Enabled' : 'Disabled' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="card-icon enforce">
+            <i class="fas fa-user-shield"></i>
+          </div>
+          <div class="card-content">
+            <h3>Enforce 2FA for All Users</h3>
+            <p>Require all users to enable two-factor authentication</p>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" [(ngModel)]="twoFactorSettings.enforce2FAForAll">
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-label">{{ twoFactorSettings.enforce2FAForAll ? 'Enforced' : 'Optional' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn-primary" (click)="update2FASettings()">
+          <i class="fas fa-save"></i> Save Settings
+        </button>
+      </div>
+    </section>
+
+    <!-- Security Logs Tab -->
+    <section class="security-logs" *ngIf="activeTab === 'logs'">
+      <div class="section-header">
+        <h2>Security Logs</h2>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-buttons">
+          <button class="filter-btn" [class.active]="logFilterType === 'all'" (click)="logFilterType = 'all'">All</button>
+          <button class="filter-btn" [class.active]="logFilterType === 'password_change'" (click)="logFilterType = 'password_change'">Password</button>
+          <button class="filter-btn" [class.active]="logFilterType === 'account_lockout'" (click)="logFilterType = 'account_lockout'">Lockouts</button>
+          <button class="filter-btn" [class.active]="logFilterType === 'permission_update'" (click)="logFilterType = 'permission_update'">Permissions</button>
+          <button class="filter-btn" [class.active]="logFilterType === 'system_alert'" (click)="logFilterType = 'system_alert'">Alerts</button>
+        </div>
+      </div>
+
+      <!-- Logs Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Performed By</th>
+              <th>Target User</th>
+              <th>Details</th>
+              <th>Timestamp</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of filteredSecurityLogs">
+              <td>
+                <span class="action-badge" [class]="log.type">
+                  <i class="fas" [class.fa-key]="log.type === 'password_change'" [class.fa-lock]="log.type === 'account_lockout'" [class.fa-user-cog]="log.type === 'permission_update'" [class.fa-bell]="log.type === 'system_alert'" [class.fa-shield-alt]="log.type === 'security_setting'"></i>
+                  {{ log.action }}
+                </span>
+              </td>
+              <td>{{ log.performedBy }}</td>
+              <td>{{ log.targetUser || '-' }}</td>
+              <td class="details-cell">{{ log.details }}</td>
+              <td>{{ log.timestamp }}</td>
+              <td>
+                <span class="type-badge">{{ log.type.replace('_', ' ') }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ modalType === 'add_admin' ? 'Add Admin User' : modalType === 'edit_admin' ? 'Edit Admin' : modalType.replace('_', ' ') | titlecase }}</h3>
+      <button class="close-btn" (click)="closeModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- Add Admin Form -->
+      <ng-container *ngIf="modalType === 'add_admin'">
+        <div class="form-group">
+          <label>Email Address:</label>
+          <input type="email" [(ngModel)]="newAdminEmail" placeholder="Enter email address">
+        </div>
+        <div class="form-group">
+          <label>Role:</label>
+          <select [(ngModel)]="newAdminRole">
+            <option value="support">Support</option>
+            <option value="moderator">Moderator</option>
+          </select>
+        </div>
+      </ng-container>
+
+      <!-- User Actions -->
+      <ng-container *ngIf="modalType !== 'add_admin' && modalType !== 'edit_admin'">
+        <p>You are about to <strong>{{ modalType.replace('_', ' ') }}</strong> the following user:</p>
+        <div class="user-info-box" *ngIf="selectedUser">
+          <strong>{{ selectedUser.name }}</strong>
+          <span>{{ selectedUser.email }}</span>
+        </div>
+        <div class="form-group">
+          <label>Reason:</label>
+          <textarea [(ngModel)]="modalReason" placeholder="Enter reason for this action..." rows="4"></textarea>
+        </div>
+      </ng-container>
+
+      <!-- Edit Admin -->
+      <ng-container *ngIf="modalType === 'edit_admin' && selectedAdmin">
+        <div class="form-group">
+          <label>Role:</label>
+          <select [(ngModel)]="selectedAdmin.role">
+            <option value="support">Support</option>
+            <option value="moderator">Moderator</option>
+            <option value="super_admin">Super Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reason:</label>
+          <textarea [(ngModel)]="modalReason" placeholder="Enter reason for this change..." rows="4"></textarea>
+        </div>
+      </ng-container>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-confirm" [class]="modalType" (click)="confirmAction()">
+        Confirm {{ modalType.replace('_', ' ') | titlecase }}
+      </button>
+    </div>
+  </div>
+</div>
+
