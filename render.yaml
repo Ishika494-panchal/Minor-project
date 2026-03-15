@@ -1,7 +1,7 @@
 services:
   - type: web
     name: skillzyyy-api
-    runtime: node
+    env: node
     plan: free
     rootDir: backend
     buildCommand: npm install
@@ -21,9 +21,14 @@ services:
       - key: CORS_ORIGIN
         sync: false
 
-staticSites:
-  - name: skillzyyy-frontend
+  - type: web
+    name: skillzyyy-frontend
+    env: static
     rootDir: .
     buildCommand: npm install && npm run build
-    publishPath: dist/skillzyy-app
+    staticPublishPath: dist/skillzyy-app
     pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
