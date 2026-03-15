@@ -1,18 +1,18 @@
-<div class="dashboard-container">
+<div class="dashboard-container" [class.sidebar-open]="isSidebarOpen">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.open]="isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy</h2>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item" routerLink="/client-dashboard">
+      <a class="nav-item" routerLink="/client-dashboard">
         <i class="fas fa-home"></i> Dashboard
       </a>
       <a routerLink="/projects" class="nav-item active">
         <i class="fas fa-briefcase"></i> Projects
       </a>
-      <a href="#" class="nav-item">
+      <a routerLink="/find-freelancers" class="nav-item">
         <i class="fas fa-search"></i> Find Freelancers
       </a>
       <a routerLink="/client-messages" class="nav-item">
@@ -29,16 +29,20 @@
       </a>
     </nav>
     <div class="sidebar-footer">
-      <button class="logout-btn" (click)="logout()">
+      <button type="button" class="logout-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <button type="button" class="mobile-menu-btn" (click)="toggleSidebar($event)" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
       <h1>Projects</h1>
       <div class="header-actions">
         <a routerLink="/post-project" class="post-project-btn">
@@ -75,10 +79,10 @@
           </thead>
           <tbody>
             <tr *ngFor="let project of projects">
-              <td class="project-title">{{ project.title }}</td>
-              <td>{{ project.freelancer }}</td>
-              <td class="budget">₹{{ project.budget | number }}</td>
-              <td>
+              <td class="project-title" data-label="Name">{{ project.title }}</td>
+              <td data-label="Freelancer">{{ project.freelancer }}</td>
+              <td class="budget" data-label="Budget">₹{{ project.budget | number }}</td>
+              <td data-label="Status">
                 <span class="status-badge" 
                       [class.active]="project.status === 'booked'"
                       [class.in-progress]="project.status === 'working' || project.status === 'submitted'"
@@ -86,11 +90,12 @@
                   {{ project.status }}
                 </span>
               </td>
-              <td>
-                <button class="action-btn" (click)="viewProject(project)" style="margin-right: 8px;">
+              <td data-label="Actions">
+                <button type="button" class="action-btn" (click)="viewProject(project)" style="margin-right: 8px;">
                   View
                 </button>
                 <button
+                  type="button"
                   class="action-btn"
                   (click)="messageProjectFreelancer(project)"
                   [disabled]="!project.freelancerId"
@@ -98,14 +103,19 @@
                   style="margin-right: 8px;">
                   Message User
                 </button>
-                <button 
+                <button
+                  type="button"
                   class="action-btn pay-btn" 
                   (click)="initiatePayment(project)"
                   [disabled]="isAnyPaymentInProgress() || !canPay(project)"
                   [style.opacity]="canPay(project) ? '1' : '0.5'"
-                  [title]="project.paymentStatus === 'Paid' ? 'Payment completed' : (canPay(project) ? 'Pay for submitted work' : 'Pay Now is locked initially')">
+                  [title]="project.paymentStatus === 'Paid' ? 'Payment completed' : (canPay(project) ? 'Pay for approved submission' : 'Approve submission first')">
                   {{ isProcessingPayment(project) ? 'Processing...' : (project.paymentStatus === 'Paid' ? 'Paid' : (canPay(project) ? 'Pay Now' : 'Pay Locked')) }}
                 </button>
+                <div class="submitted-inline-note" *ngIf="project.status === 'submitted'">
+                  <i class="fas fa-upload"></i>
+                  Freelancer has submitted the work. Click on View to approve.
+                </div>
               </td>
             </tr>
           </tbody>
@@ -120,55 +130,94 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h2>Project Details</h2>
-      <button class="close-btn" (click)="closeProjectDetails()">
+      <button type="button" class="close-btn" (click)="closeProjectDetails()">
         <i class="fas fa-times"></i>
       </button>
     </div>
     <div class="modal-body" *ngIf="selectedProject">
-      <div class="detail-row">
-        <label>Project Title</label>
-        <p>{{ selectedProject.title }}</p>
-      </div>
-      <div class="detail-row">
-        <label>Description</label>
-        <p>{{ selectedProject.description }}</p>
-      </div>
-      <div class="detail-row">
-        <label>Freelancer</label>
-        <p>{{ selectedProject.freelancer }}</p>
-      </div>
-      <div class="detail-row">
-        <label>Code Zip</label>
-        <p>{{ selectedProject.submissionCodeFileName || 'Not uploaded yet' }}</p>
-      </div>
-      <div class="detail-row">
-        <label>Hosted Link</label>
-        <p>{{ selectedProject.submissionHostedLink || 'Not uploaded yet' }}</p>
-      </div>
-      <div class="detail-grid">
-        <div class="detail-row">
-          <label>Budget</label>
-<p class="budget-value">₹{{ selectedProject.budget | number }}</p>
-        </div>
-        <div class="detail-row">
-          <label>Timeline</label>
-          <p>{{ selectedProject.deadline | date:'mediumDate' }}</p>
-        </div>
-      </div>
-      <div class="detail-row">
-        <label>Project Status</label>
-        <span class="status-badge" 
+      <div class="project-hero">
+        <h3>{{ selectedProject.title }}</h3>
+        <span class="status-badge"
               [class.active]="selectedProject.status === 'booked'"
               [class.in-progress]="selectedProject.status === 'working' || selectedProject.status === 'submitted'"
               [class.completed]="selectedProject.status === 'submitted'">
           {{ selectedProject.status }}
         </span>
       </div>
+
+      <div class="approval-banner success" *ngIf="selectedProject.clientApprovedForPayment && selectedProject.paymentStatus !== 'Paid'">
+        <i class="fas fa-check-circle"></i>
+        Submission approved. You can now click <strong>Pay Now</strong>.
+      </div>
+      <div class="approval-banner info" *ngIf="selectedProject.status === 'submitted' && !selectedProject.clientApprovedForPayment && selectedProject.paymentStatus !== 'Paid'">
+        <i class="fas fa-upload"></i>
+        Freelancer has submitted work. Please review and approve (or request resubmission).
+      </div>
+      <div class="approval-banner warning" *ngIf="selectedProject.resubmissionReason && selectedProject.status === 'working'">
+        <i class="fas fa-rotate-left"></i>
+        Resubmission requested: {{ selectedProject.resubmissionReason }}
+      </div>
+
+      <div class="detail-row">
+        <label>Description</label>
+        <p>{{ selectedProject.description }}</p>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-row">
+          <label>Freelancer</label>
+          <p>{{ selectedProject.freelancer }}</p>
+        </div>
+        <div class="detail-row">
+          <label>Budget</label>
+          <p class="budget-value">₹{{ selectedProject.budget | number }}</p>
+        </div>
+        <div class="detail-row">
+          <label>Timeline</label>
+          <p>{{ selectedProject.deadline | date:'mediumDate' }}</p>
+        </div>
+      </div>
+
+      <div class="detail-row">
+        <label>Hosted Link</label>
+        <p class="link-value">{{ selectedProject.submissionHostedLink || 'Not uploaded yet' }}</p>
+      </div>
+
+      <div class="resubmission-box" *ngIf="showResubmissionDialog">
+        <label>Reason / required changes</label>
+        <textarea
+          rows="4"
+          [(ngModel)]="resubmissionReasonInput"
+          placeholder="Example: Fix mobile spacing issue on product page and update payment flow validation."></textarea>
+        <div class="resubmission-actions">
+          <button type="button" class="secondary-btn" (click)="closeResubmissionDialog()" [disabled]="isReviewingProject">Cancel</button>
+          <button type="button" class="danger-btn" (click)="requestResubmission()" [disabled]="isReviewingProject">
+            {{ isReviewingProject ? 'Submitting...' : 'Submit Resubmission Request' }}
+          </button>
+        </div>
+      </div>
+
       <div class="modal-actions">
-        <button class="message-btn" (click)="openHostedLink(selectedProject)">
+        <button type="button" class="message-btn" (click)="openHostedLink(selectedProject)">
           <i class="fas fa-link"></i> Open Hosted Link
         </button>
-        <button class="message-btn" (click)="messageFreelancer()">
+        <button
+          type="button"
+          class="approve-btn"
+          (click)="approveSubmission()"
+          *ngIf="canReviewSubmission(selectedProject) && !selectedProject.clientApprovedForPayment"
+          [disabled]="isReviewingProject">
+          <i class="fas fa-check"></i> {{ isReviewingProject ? 'Approving...' : 'Approve' }}
+        </button>
+        <button
+          type="button"
+          class="resubmit-btn"
+          (click)="openResubmissionDialog()"
+          *ngIf="canReviewSubmission(selectedProject)"
+          [disabled]="isReviewingProject || showResubmissionDialog">
+          <i class="fas fa-rotate-left"></i> Move to Resubmission
+        </button>
+        <button type="button" class="message-btn" (click)="messageFreelancer()">
           <i class="fas fa-envelope"></i> Message User
         </button>
       </div>

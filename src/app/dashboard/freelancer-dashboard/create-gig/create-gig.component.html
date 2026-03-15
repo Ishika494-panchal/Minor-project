@@ -1,6 +1,6 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
       <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
@@ -48,16 +48,16 @@
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Top Navbar -->
     <header class="top-navbar">
       <div class="navbar-left">
-        <div class="search-bar">
-          <i class="fas fa-search"></i>
-          <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery" (keyup.enter)="search()">
-        </div>
+        <button class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle sidebar menu">
+          <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+        </button>
       </div>
       
       <div class="navbar-right">
@@ -74,13 +74,26 @@
               <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
             </div>
             <div class="notification-list">
-              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+              <div
+                class="notification-item"
+                *ngFor="let notif of notificationsList"
+                [class.unread]="!notif.read"
+                (click)="onNotificationClick(notif, $event)"
+              >
                 <div class="notification-icon" [ngClass]="notif.type">
                   <i [class]="getNotificationIcon(notif.type)"></i>
                 </div>
                 <div class="notification-content">
                   <p>{{ notif.message }}</p>
                   <span>{{ notif.time }}</span>
+                </div>
+                <button class="notification-delete-btn" type="button" (click)="deleteNotification(notif, $event)">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="notification-item" *ngIf="!notificationsList.length">
+                <div class="notification-content">
+                  <p>No notifications yet.</p>
                 </div>
               </div>
             </div>
@@ -92,16 +105,20 @@
             <div class="profile-avatar">
               <i class="fas fa-user"></i>
             </div>
-            <div class="profile-info">
-              <span class="profile-name">{{ userData?.fullName || 'Freelancer' }}</span>
-              <span class="profile-role">Freelancer</span>
-            </div>
-            <i class="fas fa-chevron-down"></i>
-            
             <div class="dropdown-menu" *ngIf="showProfileMenu">
-              <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
-              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
-              <a (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+              <div class="menu-header">
+                <p class="menu-name">{{ userData?.fullName || 'Freelancer' }}</p>
+                <p class="menu-email">{{ userData?.email || 'No email provided' }}</p>
+              </div>
+              <div class="menu-section">
+                <a (click)="goToProfile()"><i class="fas fa-user"></i> View Profile</a>
+                <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+                <a><i class="fas fa-question-circle"></i> Help / Support</a>
+              </div>
+              <div class="menu-divider"></div>
+              <div class="menu-section">
+                <a class="logout-item" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+              </div>
             </div>
           </div>
         </div>
@@ -112,8 +129,8 @@
     <div class="content-section">
       <!-- Page Header -->
       <div class="page-header">
-        <h1>Create New Gig</h1>
-        <p>Add a new service to your portfolio</p>
+        <h1>{{ isEditMode ? 'Edit Gig' : 'Create New Gig' }}</h1>
+        <p>{{ isEditMode ? 'Update your service details' : 'Add a new service to your portfolio' }}</p>
       </div>
 
       <!-- Form Card -->
@@ -168,6 +185,18 @@
               [(ngModel)]="skills" 
               name="skills"
               placeholder="Angular, Node.js, UI Design (comma separated)"
+            >
+          </div>
+
+          <!-- Portfolio Link -->
+          <div class="form-group">
+            <label for="portfolioLink">Portfolio Link</label>
+            <input
+              type="url"
+              id="portfolioLink"
+              [(ngModel)]="portfolioLink"
+              name="portfolioLink"
+              placeholder="https://yourportfolio.com"
             >
           </div>
 
@@ -238,14 +267,14 @@
 
           <!-- Action Buttons -->
           <div class="form-actions">
-            <button type="button" class="btn-cancel" (click)="cancel()">
+            <button type="button" class="btn-cancel" (click)="cancel()" [disabled]="isSubmitting">
               Cancel
             </button>
-            <button type="button" class="btn-draft" (click)="saveDraft()">
-              Save as Draft
+            <button type="button" class="btn-draft" (click)="saveDraft()" [disabled]="isSubmitting">
+              {{ isSubmitting ? 'Saving...' : 'Save as Draft' }}
             </button>
-            <button type="submit" class="btn-publish">
-              <i class="fas fa-paper-plane"></i> Publish Gig
+            <button type="submit" class="btn-publish" [disabled]="isSubmitting">
+              <i class="fas fa-paper-plane"></i> {{ isEditMode ? 'Update Gig' : 'Publish Gig' }}
             </button>
           </div>
         </form>

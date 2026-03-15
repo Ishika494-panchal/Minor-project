@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -30,6 +30,8 @@ export interface FreelancerProfile {
 export class FreelancerProfileComponent implements OnInit {
   userData: any = null;
   profile: FreelancerProfile | null = null;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   isEditing: boolean = false;
   selectedFile: File | null = null;
   imagePreview: string | ArrayBuffer | null = null;
@@ -40,12 +42,25 @@ export class FreelancerProfileComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
       this.loadProfile();
     } else {
       this.loadMockProfile();
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
 
@@ -148,7 +163,30 @@ export class FreelancerProfileComponent implements OnInit {
     alert('Profile updated successfully!');
   }
 
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
+  }
+
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -157,7 +195,13 @@ export class FreelancerProfileComponent implements OnInit {
   }
 
   goToDashboard(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-dashboard']);
+  }
+
+  goToSettings(): void {
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-settings']);
   }
 }
 

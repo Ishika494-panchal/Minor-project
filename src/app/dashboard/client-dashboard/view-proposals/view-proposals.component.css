@@ -347,6 +347,11 @@
   gap: 5px;
 }
 
+.action-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .view-profile-btn {
   background: #e9ecef;
   color: #495057;
@@ -430,6 +435,148 @@
   transform: translateY(-2px);
 }
 
+/* Freelancer Profile Modal */
+.freelancer-profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.freelancer-profile-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.close-profile-modal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.freelancer-profile-card {
+  padding: 24px;
+}
+
+.profile-hero {
+  background: linear-gradient(135deg, #1a5c3a 0%, #2d8a5a 100%);
+  border-radius: 12px;
+  text-align: center;
+  padding: 22px 18px;
+  color: #fff;
+}
+
+.profile-photo {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+}
+
+.profile-hero h3 {
+  margin: 10px 0 6px;
+  font-size: 24px;
+}
+
+.profile-hero p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.profile-details-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-detail-item {
+  background: #f9fafb;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.profile-detail-item label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.profile-detail-item span {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.profile-skills {
+  margin-top: 16px;
+}
+
+.profile-skills label {
+  display: block;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #e8f5ec;
+  color: #1a5c3a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-links {
+  margin-top: 16px;
+}
+
+.portfolio-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #1a5c3a;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.portfolio-link-btn:hover {
+  background: #144a2e;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .proposals-table th,
@@ -487,6 +634,18 @@
   .action-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .freelancer-profile-modal-overlay {
+    padding: 10px;
+  }
+
+  .freelancer-profile-card {
+    padding: 14px;
+  }
+
+  .profile-details-grid {
+    grid-template-columns: 1fr;
   }
 }
 

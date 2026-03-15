@@ -1,5 +1,5 @@
-<div class="dashboard-container">
-  <aside class="sidebar">
+<div class="dashboard-container" [class.sidebar-open]="isSidebarOpen">
+  <aside class="sidebar" [class.open]="isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo" (click)="goToDashboard()">
       <span class="brand-name" (click)="goToDashboard()">Skillzyy</span>
@@ -19,10 +19,14 @@
       <button class="logout-btn" (click)="logout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
 
   <main class="main-content">
     <header class="top-navbar">
       <div class="navbar-left">
+        <button class="mobile-menu-btn" (click)="toggleSidebar($event)" aria-label="Toggle menu">
+          <i class="fas fa-bars"></i>
+        </button>
         <div class="search-bar">
           <i class="fas fa-search"></i>
           <input type="text" placeholder="Search jobs, projects, freelancers..." [(ngModel)]="searchQuery">
@@ -41,13 +45,26 @@
               <button class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
             </div>
             <div class="notification-list">
-              <div class="notification-item" *ngFor="let notif of notificationsList" [class.unread]="!notif.read">
+              <div
+                class="notification-item"
+                *ngFor="let notif of notificationsList"
+                [class.unread]="!notif.read"
+                (click)="onNotificationClick(notif, $event)"
+              >
                 <div class="notification-icon" [ngClass]="notif.type">
                   <i [class]="getNotificationIcon(notif.type)"></i>
                 </div>
                 <div class="notification-content">
                   <p>{{ notif.message }}</p>
                   <span>{{ notif.time }}</span>
+                </div>
+                <button class="notification-delete-btn" type="button" (click)="deleteNotification(notif, $event)">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="notification-item" *ngIf="!notificationsList.length">
+                <div class="notification-content">
+                  <p>No notifications yet.</p>
                 </div>
               </div>
             </div>
@@ -57,11 +74,6 @@
         <div class="profile-wrapper">
           <div class="profile-dropdown" (click)="toggleProfileMenu($event)">
             <div class="profile-avatar"><i class="fas fa-user"></i></div>
-            <div class="profile-info">
-              <span class="profile-name">{{ userData?.fullName || 'Client' }}</span>
-              <span class="profile-role">Client</span>
-            </div>
-            <i class="fas fa-chevron-down"></i>
             <div class="dropdown-menu" *ngIf="showProfileMenu">
               <a (click)="goToProfile()"><i class="fas fa-user"></i> My Profile</a>
               <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
@@ -80,7 +92,7 @@
           <div class="conversations-list">
             <div class="conversation-item" *ngFor="let conv of conversations" [class.active]="selectedConversation?.id === conv.id" (click)="selectConversation(conv)">
               <div class="conv-avatar">
-                <img [src]="conv.avatar" [alt]="conv.name">
+                <img [src]="conv.avatar" [alt]="conv.name" (error)="onAvatarError($event)">
                 <span class="online-indicator" *ngIf="conv.online"></span>
               </div>
               <div class="conv-details">
@@ -99,7 +111,7 @@
           <div class="chat-header" *ngIf="selectedConversation">
             <div class="chat-user-info">
               <div class="chat-avatar">
-                <img [src]="selectedConversation.avatar" [alt]="selectedConversation.name">
+                <img [src]="selectedConversation.avatar" [alt]="selectedConversation.name" (error)="onAvatarError($event)">
                 <span class="online-dot" *ngIf="selectedConversation.online"></span>
               </div>
               <div class="chat-user-details">

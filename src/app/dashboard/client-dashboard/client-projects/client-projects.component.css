@@ -249,25 +249,27 @@
 
 /* Status Badges */
 .status-badge {
-  padding: 5px 12px;
-  border-radius: 20px;
+  padding: 6px 13px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
 }
 
 .status-badge.active {
-  background: #cce5ff;
-  color: #004085;
+  background: #d9f5e5;
+  color: #0f5132;
 }
 
 .status-badge.in-progress {
-  background: #fff3cd;
-  color: #856404;
+  background: #fff4cf;
+  color: #8a6400;
 }
 
 .status-badge.completed {
-  background: #d4edda;
-  color: #155724;
+  background: #d2f2dc;
+  color: #14532d;
 }
 
 /* Action Button */
@@ -297,8 +299,25 @@
 
 .action-buttons {
   display: flex;
-  gap: 5px;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
+}
+
+.submitted-inline-note {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .action-btn.pay-btn {
@@ -331,7 +350,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(8, 22, 16, 0.58);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -340,12 +360,13 @@
 
 .modal-content {
   background: white;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 600px;
+  border-radius: 16px;
+  width: 92%;
+  max-width: 760px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  border: 1px solid #d8ece0;
+  box-shadow: 0 18px 45px rgba(20, 74, 46, 0.22);
 }
 
 .modal-header {
@@ -353,7 +374,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 25px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e6f0ea;
+  background: linear-gradient(180deg, #f8fffb 0%, #ffffff 100%);
 }
 
 .modal-header h2 {
@@ -363,20 +385,67 @@
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: #edf7f0;
+  border: 1px solid #d0e6d8;
+  font-size: 18px;
   cursor: pointer;
-  color: #666;
-  padding: 5px;
+  color: #1a5c3a;
+  padding: 6px 10px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
-  color: #333;
+  transform: translateY(-1px);
+  background: #def1e6;
 }
 
 .modal-body {
   padding: 25px;
+}
+
+.project-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.project-hero h3 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  color: #17462d;
+  text-transform: capitalize;
+}
+
+.approval-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.approval-banner.success {
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.approval-banner.warning {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+}
+
+.approval-banner.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
 }
 
 .detail-row {
@@ -396,12 +465,18 @@
   color: #333;
   margin: 0;
   line-height: 1.6;
+  word-break: break-word;
+  font-size: 18px;
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
+  background: #f8fcf9;
+  border: 1px solid #e6f0ea;
+  border-radius: 12px;
+  padding: 14px;
 }
 
 .budget-value {
@@ -413,13 +488,21 @@
 .modal-actions {
   margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e6f0ea;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), #ffffff 35%);
+  z-index: 2;
 }
 
 .message-btn {
-  width: 100%;
+  width: auto;
+  min-width: 160px;
   padding: 12px 20px;
-  background: #1a5c3a;
+  background: linear-gradient(135deg, #1a5c3a, #23784a);
   color: white;
   border: none;
   border-radius: 8px;
@@ -429,11 +512,117 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.3s;
+  transition: all 0.2s ease;
 }
 
 .message-btn:hover {
-  background: #144a2e;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(26, 92, 58, 0.24);
+}
+
+.approve-btn,
+.resubmit-btn,
+.secondary-btn,
+.danger-btn {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.approve-btn {
+  background: linear-gradient(135deg, #22a53a, #17803f);
+  color: #fff;
+}
+
+.approve-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(21, 128, 61, 0.22);
+}
+
+.resubmit-btn,
+.danger-btn {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+}
+
+.resubmit-btn:hover:not(:disabled),
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(185, 28, 28, 0.22);
+}
+
+.secondary-btn {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.approve-btn:disabled,
+.resubmit-btn:disabled,
+.secondary-btn:disabled,
+.danger-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.link-value {
+  color: #1f6fe5;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.resubmission-box {
+  margin-top: 16px;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.resubmission-box label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #991b1b;
+  margin-bottom: 8px;
+}
+
+.resubmission-box textarea {
+  width: 100%;
+  border: 1px solid #fecaca;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 88px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.resubmission-box textarea:focus {
+  outline: none;
+  border-color: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+}
+
+.resubmission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 /* Responsive */
@@ -463,10 +652,116 @@
     align-items: flex-start;
   }
 
-  .projects-table th,
+  .projects-table-container {
+    overflow: visible;
+  }
+
+  .projects-table thead {
+    display: none;
+  }
+
+  .projects-table,
+  .projects-table tbody,
+  .projects-table tr,
   .projects-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .projects-table tr {
+    background: #fff;
+    border: 1px solid #e6f0ea;
+    border-radius: 10px;
+    margin-bottom: 12px;
     padding: 10px;
+  }
+
+  .projects-table td {
+    border: 0;
+    padding: 6px 2px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
     font-size: 13px;
+  }
+
+  .projects-table td::before {
+    content: attr(data-label);
+    min-width: 88px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+
+  .projects-table td:last-child {
+    margin-top: 2px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .projects-table td:last-child::before {
+    margin-bottom: 2px;
+  }
+
+  .project-title {
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .action-buttons {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .action-btn {
+    margin-right: 0 !important;
+  }
+
+  .submitted-inline-note {
+    width: 100%;
+  }
+
+  .project-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .project-hero h3 {
+    font-size: 22px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 92vh;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    position: static;
+    background: transparent;
+  }
+
+  .message-btn,
+  .approve-btn,
+  .resubmit-btn {
+    width: 100%;
+  }
+
+  .resubmission-actions {
+    flex-direction: column;
+  }
+
+  .resubmission-actions .secondary-btn,
+  .resubmission-actions .danger-btn {
+    width: 100%;
   }
 }
 

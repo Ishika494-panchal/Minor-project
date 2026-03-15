@@ -1,9 +1,11 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ProjectService, BackendProject, BackendProposal } from '../../../services/project.service';
+import { PaymentService } from '../../../services/payment.service';
 import { FreelancerProjectsResolvedData } from '../../../resolvers/freelancer-projects.resolver';
+import { NotificationItem as BackendNotification, NotificationService } from '../../../services/notification.service';
 
 interface Project {
   _id: string;
@@ -17,14 +19,17 @@ interface Project {
   submissionCodeFileName?: string;
   submissionCodeFilePath?: string;
   submissionHostedLink?: string;
+  resubmissionReason?: string;
+  resubmissionRequestedAt?: string | null;
 }
 
 interface NotificationItem {
-  id: number;
+  id: string;
   type: string;
   message: string;
   time: string;
   read: boolean;
+  actionUrl?: string;
 }
 
 @Component({
@@ -37,6 +42,8 @@ interface NotificationItem {
 export class MyProjectsComponent implements OnInit {
   userData: any = null;
   isLoading = false;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   
   // Navbar
   showNotifications = false;
@@ -50,39 +57,24 @@ export class MyProjectsComponent implements OnInit {
   submissionMessage = '';
   savingLink = false;
   submittingProjectId: string | null = null;
+  private paidProjectIds = new Set<string>();
   
   // Notifications
-  notificationsList: NotificationItem[] = [
-    {
-      id: 1,
-      type: 'project',
-      message: 'New project assigned: Portfolio Website',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'message',
-      message: 'You have a new message from Priya Patel',
-      time: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'payment',
-      message: 'Payment received: ₹2,500',
-      time: '1 day ago',
-      read: true
-    }
-  ];
+  notificationsList: NotificationItem[] = [];
+  unreadBellCount = 0;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private projectService: ProjectService
+    private projectService: ProjectService,
+    private paymentService: PaymentService,
+    private notificationService: NotificationService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = sessionStorage.getItem('userData') || localStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -90,9 +82,25 @@ export class MyProjectsComponent implements OnInit {
       const assignedProjects = this.mapProjects(resolvedData.projects || []);
       const appliedProjects = this.mapAppliedProjects(resolvedData.proposals || [], assignedProjects);
       this.projects = [...assignedProjects, ...appliedProjects];
+      this.loadPaidProjectsState();
+      this.loadNotifications();
+      this.loadUnreadCount();
       this.isLoading = false;
+      this.cdr.detectChanges();
     } else {
       this.router.navigate(['/login']);
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
 
@@ -106,13 +114,20 @@ export class MyProjectsComponent implements OnInit {
     this.isLoading = true;
     this.projectService.getFreelancerProjects(freelancerId).subscribe({
       next: (projects: BackendProject[]) => {
-        this.projects = this.mapProjects(projects);
-        this.isLoading = false;
+        this.ngZone.run(() => {
+          this.projects = this.mapProjects(projects);
+          this.loadPaidProjectsState();
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
       },
       error: (error) => {
         console.error('Error loading freelancer projects:', error);
-        this.projects = [];
-        this.isLoading = false;
+        this.ngZone.run(() => {
+          this.projects = [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -129,8 +144,35 @@ export class MyProjectsComponent implements OnInit {
       status: project.status as Project['status'],
       submissionCodeFileName: project.submissionCodeFileName || '',
       submissionCodeFilePath: project.submissionCodeFilePath || '',
-      submissionHostedLink: project.submissionHostedLink || ''
+      submissionHostedLink: project.submissionHostedLink || '',
+      resubmissionReason: project.resubmissionReason || '',
+      resubmissionRequestedAt: project.resubmissionRequestedAt || null
     }));
+  }
+
+  private loadPaidProjectsState(): void {
+    const freelancerId = this.userData?.id || this.userData?._id;
+    if (!freelancerId) {
+      return;
+    }
+
+    this.paymentService.getPayments(freelancerId, 'freelancer').subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const payments = response?.payments || [];
+          this.paidProjectIds = new Set(
+            payments
+              .filter((payment: any) => String(payment?.status) === 'Completed')
+              .map((payment: any) => String(payment?.projectId?._id || payment?.projectId || ''))
+              .filter((id: string) => !!id)
+          );
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        // Keep UI stable even if payment API fails.
+      }
+    });
   }
 
   private mapAppliedProjects(proposals: BackendProposal[], existingProjects: Project[]): Project[] {
@@ -151,10 +193,27 @@ export class MyProjectsComponent implements OnInit {
       }));
   }
 
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
   toggleNotifications(event: Event): void {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     this.showProfileMenu = false;
+    if (this.showNotifications) {
+      this.loadNotifications();
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -170,10 +229,35 @@ export class MyProjectsComponent implements OnInit {
       this.showNotifications = false;
       this.showProfileMenu = false;
     }
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
   }
 
   search(): void {
-    console.log('Searching:', this.searchQuery);
+    // Kept for template compatibility. Filtering is handled by `filteredProjects`.
+  }
+
+  get filteredProjects(): Project[] {
+    const term = this.searchQuery.trim().toLowerCase();
+    if (!term) {
+      return this.projects;
+    }
+
+    return this.projects.filter((project) => {
+      const searchable = [
+        project.title,
+        project.clientName,
+        project.status,
+        String(project.budget || ''),
+        project.deadline ? new Date(project.deadline).toLocaleDateString() : '',
+        project.resubmissionReason || ''
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(term);
+    });
   }
 
   getStatusClass(status: string): string {
@@ -184,40 +268,99 @@ export class MyProjectsComponent implements OnInit {
   }
 
   getNotificationIcon(type: string): string {
-    const icons: { [key: string]: string } = {
-      job: 'fas fa-briefcase',
-      payment: 'fas fa-dollar-sign',
-      message: 'fas fa-envelope',
-      project: 'fas fa-folder-open',
-      review: 'fas fa-star'
+    const icons: Record<string, string> = {
+      chat_message: 'fas fa-envelope',
+      order_created: 'fas fa-shopping-cart',
+      order_accepted: 'fas fa-check-circle',
+      delivery_submitted: 'fas fa-upload',
+      revision_requested: 'fas fa-rotate-left',
+      payment_success: 'fas fa-dollar-sign',
+      project_approved: 'fas fa-circle-check',
+      dispute_opened: 'fas fa-gavel',
+      system_alert: 'fas fa-triangle-exclamation'
     };
     return icons[type] || 'fas fa-bell';
   }
 
   get unreadCount(): number {
-    return this.notificationsList.filter(n => !n.read).length;
+    return this.unreadBellCount;
   }
 
   markAllAsRead(): void {
-    this.notificationsList.forEach(n => n.read = true);
+    this.notificationService.markAllAsRead().subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.notificationsList = this.notificationsList.map((item) => ({ ...item, read: true }));
+          this.unreadBellCount = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  onNotificationClick(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!notification.read) {
+      this.notificationService.markAsRead(notification.id).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.notificationsList = this.notificationsList.map((item) =>
+              item.id === notification.id ? { ...item, read: true } : item
+            );
+            this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+            this.cdr.detectChanges();
+          });
+        }
+      });
+    }
+
+    if (notification.actionUrl) {
+      this.showNotifications = false;
+      this.router.navigateByUrl(notification.actionUrl);
+    }
+  }
+
+  deleteNotification(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    this.notificationService.archiveNotification(notification.id).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          const wasUnread = !notification.read;
+          this.notificationsList = this.notificationsList.filter((item) => item.id !== notification.id);
+          if (wasUnread) {
+            this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+          }
+          this.cdr.detectChanges();
+        });
+      }
+    });
   }
 
   // Action methods
   viewProject(project: Project, event?: Event): void {
     event?.stopPropagation();
-    this.selectedProject = project;
-    this.hostedLinkInput = project.submissionHostedLink || '';
-    this.submissionMessage = this.canEditHostedLink(project)
-      ? ''
-      : 'Hosted link can be saved only after proposal is accepted.';
-    this.showProjectDetails = true;
+    this.ngZone.run(() => {
+      this.selectedProject = project;
+      this.hostedLinkInput = project.submissionHostedLink || '';
+      this.submissionMessage = this.canEditHostedLink(project)
+        ? ''
+        : 'Hosted link can be saved only after proposal is accepted.';
+      if (project.status === 'In Progress' && project.resubmissionReason) {
+        this.submissionMessage = `Client requested changes: ${project.resubmissionReason}`;
+      }
+      this.showProjectDetails = true;
+      this.cdr.detectChanges();
+    });
   }
 
   closeProjectDetails(): void {
-    this.showProjectDetails = false;
-    this.selectedProject = null;
-    this.hostedLinkInput = '';
-    this.submissionMessage = '';
+    this.ngZone.run(() => {
+      this.showProjectDetails = false;
+      this.selectedProject = null;
+      this.hostedLinkInput = '';
+      this.submissionMessage = '';
+      this.cdr.detectChanges();
+    });
   }
 
   saveHostedLink(event?: Event, directInputValue?: string): void {
@@ -259,22 +402,28 @@ export class MyProjectsComponent implements OnInit {
 
     this.projectService.uploadProjectSubmission(selectedId, { hostedLink: link }).subscribe({
       next: (response) => {
-        const updatedProject = response.project as BackendProject | undefined;
-        if (updatedProject) {
-          this.patchProject(updatedProject);
-          const refreshed = this.projects.find((p) => p._id === selectedId) || null;
-          this.selectedProject = refreshed;
-          this.hostedLinkInput = refreshed?.submissionHostedLink || link;
-        }
-        this.submissionMessage = 'Hosted link saved successfully.';
-        this.savingLink = false;
+        this.ngZone.run(() => {
+          const updatedProject = response.project as BackendProject | undefined;
+          if (updatedProject) {
+            this.patchProject(updatedProject);
+            const refreshed = this.projects.find((p) => p._id === selectedId) || null;
+            this.selectedProject = refreshed;
+            this.hostedLinkInput = refreshed?.submissionHostedLink || link;
+          }
+          this.submissionMessage = 'Hosted link saved successfully.';
+          this.savingLink = false;
+          this.cdr.detectChanges();
+        });
       },
       error: (error) => {
         console.error('Error saving hosted link:', error);
-        this.submissionMessage = String(error?.message || '').includes('403')
-          ? 'This project is not assigned to your account yet.'
-          : 'Failed to save hosted link.';
-        this.savingLink = false;
+        this.ngZone.run(() => {
+          this.submissionMessage = String(error?.message || '').includes('403')
+            ? 'This project is not assigned to your account yet.'
+            : 'Failed to save hosted link.';
+          this.savingLink = false;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -302,7 +451,9 @@ export class MyProjectsComponent implements OnInit {
             submissionCodeFileName: updated.submissionCodeFileName || '',
             submissionCodeFilePath: updated.submissionCodeFilePath || '',
             submissionHostedLink: updated.submissionHostedLink || '',
-            status: updated.status as Project['status']
+            status: updated.status as Project['status'],
+            resubmissionReason: updated.resubmissionReason || '',
+            resubmissionRequestedAt: updated.resubmissionRequestedAt || null
           }
         : p
     );
@@ -317,9 +468,13 @@ export class MyProjectsComponent implements OnInit {
       return;
     }
 
-    if (currentProject.status !== 'In Progress') {
-      if (currentProject.status === 'Submitted') {
+    if (!this.canSubmitWork(currentProject)) {
+      if (this.isPaymentUnderReview(currentProject)) {
+        alert('Payment is already completed/reviewed for this project.');
+      } else if (currentProject.status === 'Submitted') {
         alert('Project already submitted.');
+      } else if (currentProject.status !== 'In Progress') {
+        alert('Submission is allowed only for active in-progress projects.');
       }
       return;
     }
@@ -342,18 +497,24 @@ export class MyProjectsComponent implements OnInit {
 
     this.projectService.submitProjectWork(currentProject._id).subscribe({
       next: () => {
-        this.submittingProjectId = null;
+        this.ngZone.run(() => {
+          this.submittingProjectId = null;
+          this.cdr.detectChanges();
+        });
       },
       error: (error) => {
         console.error('Error submitting project work:', error);
         // Roll back if backend rejects submit.
-        this.projects = this.projects.map((p) =>
-          p._id === currentProject._id ? { ...p, status: previousStatus } : p
-        );
-        if (this.selectedProject?._id === currentProject._id) {
-          this.selectedProject = { ...this.selectedProject, status: previousStatus };
-        }
-        this.submittingProjectId = null;
+        this.ngZone.run(() => {
+          this.projects = this.projects.map((p) =>
+            p._id === currentProject._id ? { ...p, status: previousStatus } : p
+          );
+          if (this.selectedProject?._id === currentProject._id) {
+            this.selectedProject = { ...this.selectedProject, status: previousStatus };
+          }
+          this.submittingProjectId = null;
+          this.cdr.detectChanges();
+        });
         alert(error?.error?.message || 'Failed to submit work.');
       }
     });
@@ -361,6 +522,15 @@ export class MyProjectsComponent implements OnInit {
 
   isSubmittingProject(projectId: string): boolean {
     return this.submittingProjectId === projectId;
+  }
+
+  canSubmitWork(project: Project | null): boolean {
+    // Show submit option for in-progress projects only, and hide once payment is completed/review state.
+    return !!project && project.status === 'In Progress' && !this.isPaymentUnderReview(project);
+  }
+
+  isPaymentUnderReview(project: Project): boolean {
+    return this.paidProjectIds.has(project._id);
   }
 
   messageClient(project: Project, event?: Event): void {
@@ -374,29 +544,35 @@ export class MyProjectsComponent implements OnInit {
     this.router.navigate(['/freelancer-messages'], {
       queryParams: {
         partnerId: clientId,
-        partnerName: project.clientName || 'Client'
+        partnerName: project.clientName || 'Client',
+        projectId: project._id
       }
     });
   }
 
   // Navigation methods
   goToDashboard(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-dashboard']);
   }
 
   goToFindJobs(): void {
+    this.closeSidebar();
     this.router.navigate(['/find-jobs']);
   }
 
   goToMyGigs(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-gigs']);
   }
 
   goToMessages(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-messages']);
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -406,14 +582,62 @@ export class MyProjectsComponent implements OnInit {
 
   goToProfile(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-profile']);
   }
 
   goToSettings(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-settings']);
   }
 
   goToEarnings(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-earnings']);
+  }
+
+  private loadNotifications(): void {
+    this.notificationService.getMyNotifications(20, 1).subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.notificationsList = (res?.notifications || []).map((item: BackendNotification) => ({
+            id: String(item.id),
+            type: item.type,
+            message: item.message || item.title || 'New update',
+            time: this.toRelativeTime(item.createdAt),
+            read: !!item.isRead,
+            actionUrl: item.actionUrl || ''
+          }));
+          this.unreadBellCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private loadUnreadCount(): void {
+    this.notificationService.getUnreadCount().subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.unreadBellCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private toRelativeTime(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? 's' : ''} ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
   }
 }
 

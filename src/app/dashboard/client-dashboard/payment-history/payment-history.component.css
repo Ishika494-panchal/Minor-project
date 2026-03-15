@@ -285,6 +285,22 @@
   overflow-x: auto;
 }
 
+.loading-state {
+  text-align: center;
+  padding: 22px 12px;
+  color: #666;
+}
+
+.loading-state i {
+  font-size: 20px;
+  color: #1a5c3a;
+  margin-bottom: 8px;
+}
+
+.loading-state p {
+  margin: 0;
+}
+
 .payment-table {
   width: 100%;
   border-collapse: collapse;

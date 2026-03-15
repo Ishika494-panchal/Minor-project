@@ -360,6 +360,27 @@
   overflow-x: auto;
 }
 
+.loading-state {
+  text-align: center;
+  padding: 24px 12px;
+  color: #666;
+}
+
+.loading-state i {
+  font-size: 20px;
+  color: #1a5c3a;
+  margin-bottom: 8px;
+}
+
+.loading-state p {
+  margin: 0;
+}
+
+.no-data-cell {
+  text-align: center;
+  color: #777;
+}
+
 .transactions-table {
   width: 100%;
   border-collapse: collapse;

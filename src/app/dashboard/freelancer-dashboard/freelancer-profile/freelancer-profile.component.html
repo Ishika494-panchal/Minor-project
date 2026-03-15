@@ -1,6 +1,6 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <span class="brand-name">Skillzyy</span>
@@ -35,7 +35,7 @@
         <i class="fas fa-user"></i>
         <span>Profile</span>
       </a>
-      <a class="nav-item">
+      <a class="nav-item" (click)="goToSettings()">
         <i class="fas fa-cog"></i>
         <span>Settings</span>
       </a>
@@ -48,21 +48,20 @@
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="page-header">
+      <button class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle sidebar menu">
+        <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+      </button>
       <div class="header-left">
         <button class="back-btn" (click)="goToDashboard()">
           <i class="fas fa-arrow-left"></i>
         </button>
         <h1>Profile</h1>
-      </div>
-      <div class="header-actions">
-        <button class="edit-btn" (click)="toggleEdit()">
-          <i class="fas fa-edit"></i> Edit Profile
-        </button>
       </div>
     </header>
 

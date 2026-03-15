@@ -11,7 +11,8 @@ const {
   getFreelancerProjects,
   getOpenProjects,
   submitProjectWork,
-  uploadProjectSubmission
+  uploadProjectSubmission,
+  reviewSubmittedProject
 } = require('../controllers/projectController');
 const { protect } = require('../middleware/authMiddleware');
 const { uploadProjectZip } = require('../middleware/uploadMiddleware');
@@ -26,6 +27,7 @@ router.get('/freelancer/:freelancerId', protect, getFreelancerProjects);
 router.post('/', protect, createProject);
 router.post('/:id/submission', protect, uploadProjectZip.single('codeZip'), uploadProjectSubmission);
 router.put('/:id/submit', protect, submitProjectWork);
+router.put('/:id/review-submission', protect, reviewSubmittedProject);
 router.put('/:id', protect, updateProject);
 router.delete('/:id', protect, deleteProject);
 

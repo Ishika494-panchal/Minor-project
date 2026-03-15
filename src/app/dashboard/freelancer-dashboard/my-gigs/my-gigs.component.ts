@@ -1,24 +1,31 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { BackendGig, GigService } from '../../../services/gig.service';
+import { finalize } from 'rxjs/operators';
+import { NotificationItem as BackendNotification, NotificationService } from '../../../services/notification.service';
 
 interface Gig {
   id: string;
   image: string;
   title: string;
   category: string;
+  description: string;
+  tags: string[];
+  portfolioLink?: string;
   startingPrice: number;
   deliveryTime: number;
   status: 'Active' | 'Paused' | 'Draft';
 }
 
 interface NotificationItem {
-  id: number;
+  id: string;
   type: string;
   message: string;
   time: string;
   read: boolean;
+  actionUrl?: string;
 }
 
 @Component({
@@ -30,97 +37,31 @@ interface NotificationItem {
 })
 export class MyGigsComponent implements OnInit {
   // Navbar
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   showNotifications = false;
   showProfileMenu = false;
   searchQuery = '';
   userData: any = null;
 
   // Notifications
-  notificationsList: NotificationItem[] = [
-    {
-      id: 1,
-      type: 'job',
-      message: 'New job matching your skills: React Developer',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'message',
-      message: 'You have a new message from Tech Solutions Inc.',
-      time: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'payment',
-      message: 'Payment received: ₹15,000',
-      time: '1 day ago',
-      read: true
-    }
-  ];
+  notificationsList: NotificationItem[] = [];
+  unreadBellCount = 0;
 
-  // Gigs data
-  gigs: Gig[] = [
-    {
-      id: '1',
-      image: 'assets/client.jpeg',
-      title: 'I will build a professional Angular website',
-      category: 'Web Development',
-      startingPrice: 5000,
-      deliveryTime: 5,
-      status: 'Active'
-    },
-    {
-      id: '2',
-      image: 'assets/client.jpeg',
-      title: 'I will create a stunning UI/UX design',
-      category: 'UI/UX Design',
-      startingPrice: 3500,
-      deliveryTime: 3,
-      status: 'Active'
-    },
-    {
-      id: '3',
-      image: 'assets/client.jpeg',
-      title: 'I will develop a responsive React application',
-      category: 'Web Development',
-      startingPrice: 8000,
-      deliveryTime: 7,
-      status: 'Paused'
-    },
-    {
-      id: '4',
-      image: 'assets/client.jpeg',
-      title: 'I will design a beautiful logo for your brand',
-      category: 'Graphic Design',
-      startingPrice: 2000,
-      deliveryTime: 2,
-      status: 'Draft'
-    },
-    {
-      id: '5',
-      image: 'assets/client.jpeg',
-      title: 'I will build a mobile app with React Native',
-      category: 'Mobile Development',
-      startingPrice: 15000,
-      deliveryTime: 14,
-      status: 'Active'
-    },
-    {
-      id: '6',
-      image: 'assets/client.jpeg',
-      title: 'I will optimize your website for SEO',
-      category: 'Digital Marketing',
-      startingPrice: 2500,
-      deliveryTime: 3,
-      status: 'Active'
-    }
-  ];
+  gigs: Gig[] = [];
+  isLoadingGigs = false;
+  selectedGig: Gig | null = null;
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private gigService: GigService,
+    private notificationService: NotificationService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -131,6 +72,63 @@ export class MyGigsComponent implements OnInit {
         avatar: ''
       };
     }
+
+    this.loadGigs();
+    this.loadNotifications();
+    this.loadUnreadCount();
+  }
+
+  private mapGig(gig: BackendGig): Gig {
+    return {
+      id: gig._id,
+      image: gig.images?.[0] || 'assets/client.jpeg',
+      title: gig.title,
+      category: gig.category,
+      description: gig.description || '',
+      tags: gig.tags || [],
+      portfolioLink: gig.portfolioLink || '',
+      startingPrice: gig.price,
+      deliveryTime: gig.deliveryDays,
+      status: (gig.status as Gig['status']) || 'Draft'
+    };
+  }
+
+  loadGigs(): void {
+    this.isLoadingGigs = true;
+    this.gigService.getMyGigs()
+      .pipe(finalize(() => {
+        this.ngZone.run(() => {
+          this.isLoadingGigs = false;
+          this.cdr.detectChanges();
+        });
+      }))
+      .subscribe({
+        next: (gigs) => {
+          this.ngZone.run(() => {
+            this.gigs = gigs.map((gig) => this.mapGig(gig));
+            this.cdr.detectChanges();
+          });
+        },
+        error: (error) => {
+          console.error('Error loading gigs:', error);
+          this.ngZone.run(() => {
+            this.gigs = [];
+            this.cdr.detectChanges();
+          });
+        }
+      });
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
   }
 
   getStatusClass(status: string): string {
@@ -138,19 +136,35 @@ export class MyGigsComponent implements OnInit {
   }
 
   editGig(gig: Gig): void {
-    console.log('Edit gig:', gig.title);
-    alert(`Edit: ${gig.title}`);
+    this.router.navigate(['/create-gig'], { queryParams: { edit: gig.id } });
   }
 
   deleteGig(gig: Gig): void {
     if (confirm(`Are you sure you want to delete "${gig.title}"?`)) {
-      this.gigs = this.gigs.filter(g => g.id !== gig.id);
+      this.gigService.deleteGig(gig.id).subscribe({
+        next: () => {
+          this.gigs = this.gigs.filter((g) => g.id !== gig.id);
+        },
+        error: (error) => {
+          alert(error?.message || 'Failed to delete gig. Please try again.');
+        }
+      });
     }
   }
 
   viewGig(gig: Gig): void {
-    console.log('View gig:', gig.title);
-    alert(`View: ${gig.title}`);
+    this.selectedGig = gig;
+  }
+
+  closeGigModal(): void {
+    this.selectedGig = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.selectedGig) {
+      this.closeGigModal();
+    }
   }
 
   createNewGig(): void {
@@ -159,10 +173,27 @@ export class MyGigsComponent implements OnInit {
   }
 
   // Navbar methods
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
   toggleNotifications(event: Event): void {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     this.showProfileMenu = false;
+    if (this.showNotifications) {
+      this.loadNotifications();
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -178,6 +209,9 @@ export class MyGigsComponent implements OnInit {
       this.showNotifications = false;
       this.showProfileMenu = false;
     }
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
   }
 
   search(): void {
@@ -185,25 +219,66 @@ export class MyGigsComponent implements OnInit {
   }
 
   getNotificationIcon(type: string): string {
-    const icons: { [key: string]: string } = {
-      job: 'fas fa-briefcase',
-      payment: 'fas fa-dollar-sign',
-      message: 'fas fa-envelope',
-      project: 'fas fa-folder-open',
-      review: 'fas fa-star'
+    const icons: Record<string, string> = {
+      chat_message: 'fas fa-envelope',
+      order_created: 'fas fa-shopping-cart',
+      order_accepted: 'fas fa-check-circle',
+      delivery_submitted: 'fas fa-upload',
+      revision_requested: 'fas fa-rotate-left',
+      payment_success: 'fas fa-dollar-sign',
+      project_approved: 'fas fa-circle-check',
+      dispute_opened: 'fas fa-gavel',
+      system_alert: 'fas fa-triangle-exclamation'
     };
     return icons[type] || 'fas fa-bell';
   }
 
   get unreadCount(): number {
-    return this.notificationsList.filter(n => !n.read).length;
+    return this.unreadBellCount;
   }
 
   markAllAsRead(): void {
-    this.notificationsList.forEach(n => n.read = true);
+    this.notificationService.markAllAsRead().subscribe({
+      next: () => {
+        this.notificationsList = this.notificationsList.map((item) => ({ ...item, read: true }));
+        this.unreadBellCount = 0;
+      }
+    });
+  }
+
+  onNotificationClick(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!notification.read) {
+      this.notificationService.markAsRead(notification.id).subscribe({
+        next: () => {
+          this.notificationsList = this.notificationsList.map((item) =>
+            item.id === notification.id ? { ...item, read: true } : item
+          );
+          this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+        }
+      });
+    }
+    if (notification.actionUrl) {
+      this.showNotifications = false;
+      this.router.navigateByUrl(notification.actionUrl);
+    }
+  }
+
+  deleteNotification(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    this.notificationService.archiveNotification(notification.id).subscribe({
+      next: () => {
+        const wasUnread = !notification.read;
+        this.notificationsList = this.notificationsList.filter((item) => item.id !== notification.id);
+        if (wasUnread) {
+          this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+        }
+      }
+    });
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -213,30 +288,76 @@ export class MyGigsComponent implements OnInit {
 
   goToProfile(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-profile']);
   }
 
   goToSettings(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-settings']);
   }
 
   goToDashboard(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-dashboard']);
   }
 
   goToFindJobs(): void {
+    this.closeSidebar();
     this.router.navigate(['/find-jobs']);
   }
 
   goToMessages(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-messages']);
   }
 
   goToProjects(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-projects']);
   }
 
   goToEarnings(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-earnings']);
+  }
+
+  private loadNotifications(): void {
+    this.notificationService.getMyNotifications(20, 1).subscribe({
+      next: (res) => {
+        this.notificationsList = (res?.notifications || []).map((item: BackendNotification) => ({
+          id: String(item.id),
+          type: item.type,
+          message: item.message || item.title || 'New update',
+          time: this.toRelativeTime(item.createdAt),
+          read: !!item.isRead,
+          actionUrl: item.actionUrl || ''
+        }));
+        this.unreadBellCount = Number(res?.unreadCount || 0);
+      }
+    });
+  }
+
+  private loadUnreadCount(): void {
+    this.notificationService.getUnreadCount().subscribe({
+      next: (res) => {
+        this.unreadBellCount = Number(res?.unreadCount || 0);
+      }
+    });
+  }
+
+  private toRelativeTime(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? 's' : ''} ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
   }
 }
 

@@ -1,18 +1,18 @@
-<div class="dashboard-container">
+<div class="dashboard-container" [class.sidebar-open]="isSidebarOpen">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.open]="isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy</h2>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item" routerLink="/client-dashboard">
+      <a class="nav-item" routerLink="/client-dashboard">
         <i class="fas fa-home"></i> Dashboard
       </a>
       <a class="nav-item" routerLink="/projects">
         <i class="fas fa-briefcase"></i> Projects
       </a>
-      <a href="#" class="nav-item">
+      <a routerLink="/find-freelancers" class="nav-item">
         <i class="fas fa-search"></i> Find Freelancers
       </a>
       <a routerLink="/client-messages" class="nav-item">
@@ -34,52 +34,79 @@
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <button class="mobile-menu-btn" (click)="toggleSidebar($event)" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
       <h1>Settings</h1>
       <div class="header-actions">
-        <button class="notification-btn">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge">3</span>
-        </button>
-        <div class="user-avatar">
-          <i class="fas fa-user"></i>
+        <div class="notification-wrapper">
+          <button class="notification-btn" type="button" (click)="toggleNotifications($event)">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge" *ngIf="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </button>
+          <div class="notification-dropdown" *ngIf="showNotifications" (click)="$event.stopPropagation()">
+            <div class="notification-header">
+              <h3>Notifications</h3>
+              <button type="button" class="mark-read-btn" (click)="markAllAsRead()">Mark all read</button>
+            </div>
+            <div class="notification-list" *ngIf="notificationsList.length > 0; else noNotifications">
+              <div
+                class="notification-item"
+                *ngFor="let notification of notificationsList"
+                [class.unread]="!notification.read"
+                (click)="onNotificationClick(notification, $event)"
+              >
+                <div class="notification-icon" [ngClass]="notification.type">
+                  <i [class]="getNotificationIcon(notification.type)"></i>
+                </div>
+                <div class="notification-content">
+                  <p>{{ notification.message }}</p>
+                  <span class="notification-time">{{ notification.time }}</span>
+                </div>
+                <button class="notification-delete-btn" type="button" (click)="deleteNotification(notification, $event)">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+            <ng-template #noNotifications>
+              <div class="no-notifications">
+                <i class="fas fa-bell-slash"></i>
+                <p>No notifications yet</p>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+        <div class="top-profile-wrapper">
+          <button class="top-profile-btn" (click)="toggleProfileMenu($event)">
+            <i class="fas fa-user top-profile-icon"></i>
+          </button>
+          <div class="top-dropdown-menu" *ngIf="showProfileMenu">
+            <div class="top-menu-header">
+              <p class="top-menu-name">{{ userData?.fullName || 'Client' }}</p>
+              <p class="top-menu-email">{{ userData?.email || 'No email provided' }}</p>
+            </div>
+            <div class="top-menu-section">
+              <a (click)="goToProfile()"><i class="fas fa-user"></i> View Profile</a>
+              <a (click)="goToSettings()"><i class="fas fa-cog"></i> Settings</a>
+              <a><i class="fas fa-question-circle"></i> Help / Support</a>
+            </div>
+            <div class="top-menu-divider"></div>
+            <div class="top-menu-section">
+              <a class="top-logout-item" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
         </div>
       </div>
     </header>
 
     <!-- Settings Content -->
     <div class="settings-content" *ngIf="settings">
-      <!-- Account Settings -->
-      <section class="settings-section">
-        <div class="section-header">
-          <h3><i class="fas fa-user-cog"></i> Account Settings</h3>
-        </div>
-        <div class="section-content">
-          <div class="setting-item">
-            <div class="setting-info">
-              <label>Email Address</label>
-              <span class="setting-value">{{ settings.email }}</span>
-            </div>
-            <button class="setting-btn" (click)="openChangeEmailModal()">
-              <i class="fas fa-edit"></i> Change
-            </button>
-          </div>
-          <div class="setting-item">
-            <div class="setting-info">
-              <label>Password</label>
-              <span class="setting-value">••••••••</span>
-            </div>
-            <button class="setting-btn" (click)="openChangePasswordModal()">
-              <i class="fas fa-key"></i> Change Password
-            </button>
-          </div>
-        </div>
-      </section>
-
       <!-- Notification Settings -->
       <section class="settings-section">
         <div class="section-header">
@@ -122,82 +149,21 @@
         </div>
       </section>
 
-      <!-- Privacy Settings -->
-      <section class="settings-section">
-        <div class="section-header">
-          <h3><i class="fas fa-shield-alt"></i> Privacy Settings</h3>
-        </div>
-        <div class="section-content">
-          <div class="setting-item toggle-item">
-            <div class="setting-info">
-              <label>Profile Visibility</label>
-              <span class="setting-description">Control who can view your profile</span>
-            </div>
-            <div class="visibility-toggle">
-              <button [class.active]="settings.privacy.profileVisibility === 'public'" 
-                      (click)="togglePrivacy('profileVisibility')">
-                Public
-              </button>
-              <button [class.active]="settings.privacy.profileVisibility === 'private'" 
-                      (click)="togglePrivacy('profileVisibility')">
-                Private
-              </button>
-            </div>
-          </div>
-          <div class="setting-item toggle-item">
-            <div class="setting-info">
-              <label>Show Contact Information</label>
-              <span class="setting-description">Allow others to see your contact details</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [checked]="settings.privacy.showContactInfo" 
-                     (change)="togglePrivacy('showContactInfo')">
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <!-- Payment Settings -->
-      <section class="settings-section">
-        <div class="section-header">
-          <h3><i class="fas fa-credit-card"></i> Payment Methods</h3>
-        </div>
-        <div class="section-content">
-          <div class="payment-methods-list">
-            <div class="payment-method-card" *ngFor="let pm of settings.paymentMethods">
-              <div class="payment-icon">
-                <i class="fas" [class.fa-university]="pm.type === 'bank'" [class.fa-mobile-alt]="pm.type === 'upi'"></i>
-              </div>
-              <div class="payment-details">
-                <span class="payment-type" *ngIf="pm.type === 'upi'">UPI</span>
-                <span class="payment-type" *ngIf="pm.type === 'bank'">Bank Account</span>
-                <span class="payment-value" *ngIf="pm.upiId">{{ pm.upiId }}</span>
-                <span class="payment-value" *ngIf="pm.bankName">{{ pm.bankName }} - {{ pm.accountNumber }}</span>
-                <span class="default-badge" *ngIf="pm.isDefault">Default</span>
-              </div>
-              <div class="payment-actions">
-                <button class="action-icon-btn" *ngIf="!pm.isDefault" (click)="setDefaultPayment(pm.id)" title="Set as default">
-                  <i class="fas fa-star"></i>
-                </button>
-                <button class="action-icon-btn delete" (click)="deletePaymentMethod(pm.id)" title="Delete">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-          <button class="add-payment-btn" (click)="openAddPaymentModal()">
-            <i class="fas fa-plus"></i> Add Payment Method
-          </button>
-        </div>
-      </section>
-
       <!-- Account Management -->
       <section class="settings-section danger-zone">
         <div class="section-header">
           <h3><i class="fas fa-exclamation-triangle"></i> Account Management</h3>
         </div>
         <div class="section-content">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label>Password</label>
+              <span class="setting-description">Update your account password</span>
+            </div>
+            <button class="setting-btn" (click)="openChangePasswordModal()">
+              <i class="fas fa-key"></i> Change Password
+            </button>
+          </div>
           <div class="setting-item">
             <div class="setting-info">
               <label>Logout</label>
@@ -321,7 +287,9 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="cancel-btn" (click)="closeChangePasswordModal()">Cancel</button>
-          <button type="submit" class="save-btn">Change Password</button>
+          <button type="submit" class="save-btn" [disabled]="isChangingPassword">
+            {{ isChangingPassword ? 'Changing...' : 'Change Password' }}
+          </button>
         </div>
       </form>
     </div>

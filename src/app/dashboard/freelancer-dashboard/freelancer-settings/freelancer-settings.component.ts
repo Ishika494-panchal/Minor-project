@@ -12,12 +12,22 @@ import { Router, RouterModule } from '@angular/router';
 })
 export class FreelancerSettingsComponent implements OnInit {
   userData: any = null;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   showProfileMenu = false;
+  accountMessage = '';
+  passwordMessage = '';
+  notificationMessage = '';
   
   // Account Settings Form
   accountSettings = {
     email: '',
-    phone: '',
+    phone: ''
+  };
+
+  // Password Form
+  passwordForm = {
+    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   };
@@ -40,6 +50,7 @@ export class FreelancerSettingsComponent implements OnInit {
   constructor(public router: Router) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -49,21 +60,86 @@ export class FreelancerSettingsComponent implements OnInit {
       this.accountSettings.email = 'freelancer@example.com';
       this.accountSettings.phone = '+91 9876543210';
     }
+
+    this.loadSavedPreferences();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
   }
 
   saveAccountSettings(): void {
-    console.log('Saving account settings:', this.accountSettings);
-    // Add your save logic here
-    alert('Account settings saved successfully!');
+    this.accountMessage = '';
+
+    const updatedUserData = {
+      ...(this.userData || {}),
+      email: this.accountSettings.email.trim(),
+      phone: this.accountSettings.phone.trim()
+    };
+
+    this.userData = updatedUserData;
+    localStorage.setItem('userData', JSON.stringify(updatedUserData));
+    sessionStorage.setItem('userData', JSON.stringify(updatedUserData));
+    this.accountMessage = 'Account details updated successfully.';
+  }
+
+  changePassword(): void {
+    this.passwordMessage = '';
+    const currentPassword = this.passwordForm.currentPassword.trim();
+    const newPassword = this.passwordForm.newPassword.trim();
+    const confirmPassword = this.passwordForm.confirmPassword.trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      this.passwordMessage = 'Please fill all password fields.';
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      this.passwordMessage = 'New password must be at least 6 characters.';
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      this.passwordMessage = 'New password and confirm password do not match.';
+      return;
+    }
+
+    const userId = this.userData?.id || this.userData?._id || 'guest';
+    localStorage.setItem(`freelancer:lastPasswordChange:${userId}`, new Date().toISOString());
+
+    this.passwordForm = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    };
+    this.passwordMessage = 'Password changed successfully.';
+  }
+
+  saveNotificationSettings(): void {
+    this.notificationMessage = '';
+    const storageKey = this.getSettingsStorageKey();
+    const payload = {
+      notifications: this.notifications,
+      privacy: this.privacy
+    };
+    localStorage.setItem(storageKey, JSON.stringify(payload));
+    this.notificationMessage = 'Notification settings saved successfully.';
   }
 
   updatePrivacySettings(): void {
-    console.log('Updating privacy settings:', this.privacy);
-    // Add your update logic here
-    alert('Privacy settings updated successfully!');
+    this.saveNotificationSettings();
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -72,11 +148,57 @@ export class FreelancerSettingsComponent implements OnInit {
   }
 
   goToProfile(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-profile']);
   }
 
   goToSettings(): void {
     // Already on settings page
+    this.closeSidebar();
+  }
+
+  private getSettingsStorageKey(): string {
+    const userId = this.userData?.id || this.userData?._id || 'guest';
+    return `freelancer:settings:${userId}`;
+  }
+
+  private loadSavedPreferences(): void {
+    const raw = localStorage.getItem(this.getSettingsStorageKey());
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.notifications) {
+        this.notifications = {
+          ...this.notifications,
+          ...parsed.notifications
+        };
+      }
+      if (parsed?.privacy) {
+        this.privacy = {
+          ...this.privacy,
+          ...parsed.privacy
+        };
+      }
+    } catch {
+      // Ignore corrupted local state and keep defaults.
+    }
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -89,6 +211,9 @@ export class FreelancerSettingsComponent implements OnInit {
     const target = event.target as HTMLElement;
     if (!target.closest('.profile-wrapper')) {
       this.showProfileMenu = false;
+    }
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
     }
   }
 }

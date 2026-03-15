@@ -1,6 +1,8 @@
 const Proposal = require('../models/Proposal');
 const Project = require('../models/Project');
+const Conversation = require('../models/Conversation');
 const User = require('../models/User');
+const { createNotification } = require('../services/notificationService');
 
 // @desc    Get proposals for a project
 // @route   GET /api/proposals/project/:projectId
@@ -88,6 +90,54 @@ exports.getFreelancerProposals = async (req, res) => {
   }
 };
 
+// @desc    Get freelancer profile details for proposal view
+// @route   GET /api/proposals/freelancer-profile/:freelancerId
+// @access  Private
+exports.getFreelancerProfile = async (req, res) => {
+  try {
+    const { freelancerId } = req.params;
+    const freelancer = await User.findById(freelancerId)
+      .select('fullName email bio skills hourlyRate earnings createdAt profileImage role')
+      .lean();
+
+    if (!freelancer) {
+      return res.status(404).json({ success: false, message: 'Freelancer not found' });
+    }
+
+    const [latestProposal, acceptedProposals, totalProposals] = await Promise.all([
+      Proposal.findOne({ freelancerId })
+        .select('rating portfolioLink deliveryTime proposedBudget')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Proposal.countDocuments({ freelancerId, status: 'accepted' }),
+      Proposal.countDocuments({ freelancerId })
+    ]);
+
+    const freelancerProfile = {
+      id: String(freelancer._id),
+      fullName: freelancer.fullName || 'Freelancer',
+      email: freelancer.email || '',
+      bio: freelancer.bio || 'No profile description provided yet.',
+      skills: Array.isArray(freelancer.skills) ? freelancer.skills : [],
+      hourlyRate: Number(freelancer.hourlyRate || 0),
+      earnings: Number(freelancer.earnings || 0),
+      memberSince: freelancer.createdAt,
+      profileImage: freelancer.profileImage || '',
+      rating: Number(latestProposal?.rating || 0),
+      portfolioLink: latestProposal?.portfolioLink || '',
+      deliveryTime: Number(latestProposal?.deliveryTime || 0),
+      proposedBudget: Number(latestProposal?.proposedBudget || 0),
+      acceptedProposals,
+      totalProposals
+    };
+
+    return res.json({ success: true, freelancerProfile });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Create proposal
 // @route   POST /api/proposals
 // @access  Private (Freelancer)
@@ -129,6 +179,21 @@ const { projectId, projectTitle, proposedBudget, deliveryTime, proposalMessage, 
       deliveryTime,
       proposalMessage,
       portfolioLink: portfolioLink || ''
+    });
+
+    await createNotification(req.app, {
+      recipientId: project.clientId,
+      actorId: req.user.id,
+      type: 'order_created',
+      title: 'New proposal received',
+      message: `${user.fullName || 'Freelancer'} submitted a proposal for "${project.title}"`,
+      linkedEntityType: 'proposal',
+      linkedEntityId: String(proposal._id),
+      actionUrl: '/view-proposals',
+      metadata: {
+        projectId: String(project._id),
+        proposalId: String(proposal._id)
+      }
     });
     
     res.status(201).json({
@@ -184,8 +249,60 @@ exports.updateProposalStatus = async (req, res) => {
       // Update project
       await Project.findByIdAndUpdate(project._id, {
         status: 'In Progress',
+        budget: Number(proposal.proposedBudget || project.budget || 0),
         assignedFreelancerId: proposal.freelancerId,
-        assignedFreelancerName: proposal.freelancerName
+        assignedFreelancerName: proposal.freelancerName,
+        clientApprovedForPayment: false,
+        clientApprovedAt: null,
+        resubmissionReason: '',
+        resubmissionRequestedAt: null
+      });
+
+      // Ensure one project-linked conversation exists as soon as order starts.
+      await Conversation.findOneAndUpdate(
+        {
+          conversationType: 'project',
+          projectId: project._id,
+          clientId: project.clientId,
+          freelancerId: proposal.freelancerId
+        },
+        {
+          $setOnInsert: {
+            status: 'active',
+            messagingAllowed: true
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      await createNotification(req.app, {
+        recipientId: proposal.freelancerId,
+        actorId: req.user.id,
+        type: 'order_accepted',
+        title: 'Proposal accepted',
+        message: `${project.clientName || 'Client'} accepted your proposal for "${project.title}"`,
+        linkedEntityType: 'project',
+        linkedEntityId: String(project._id),
+        actionUrl: `/my-projects`,
+        metadata: {
+          projectId: String(project._id),
+          proposalId: String(proposal._id)
+        }
+      });
+    } else if (status === 'rejected') {
+      await createNotification(req.app, {
+        recipientId: proposal.freelancerId,
+        actorId: req.user.id,
+        type: 'system_alert',
+        title: 'Proposal update',
+        message: `Your proposal for "${project.title}" was not selected.`,
+        linkedEntityType: 'proposal',
+        linkedEntityId: String(proposal._id),
+        actionUrl: '/find-jobs',
+        metadata: {
+          projectId: String(project._id),
+          proposalId: String(proposal._id)
+        }
       });
     }
     

@@ -24,6 +24,11 @@ const gigSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  portfolioLink: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   price: {
     type: Number,
     required: [true, 'Price is required'],
@@ -48,7 +53,7 @@ const gigSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['Active', 'Paused', 'Deleted'],
+    enum: ['Active', 'Paused', 'Draft', 'Deleted'],
     default: 'Active'
   },
   createdAt: {

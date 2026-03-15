@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const Proposal = require('../models/Proposal');
 const User = require('../models/User');
+const { createNotification } = require('../services/notificationService');
 
 // @desc    Get all projects
 // @route   GET /api/projects
@@ -162,7 +163,7 @@ exports.getClientProjects = async (req, res) => {
   try {
     // Always use authenticated user ID to avoid frontend/clientId mismatch issues.
     const projects = await Project.find({ clientId: req.user.id })
-      .select('title description budget deadline status assignedFreelancerId assignedFreelancerName submissionCodeFileName submissionCodeFilePath submissionHostedLink createdAt')
+      .select('title description budget deadline status assignedFreelancerId assignedFreelancerName submissionCodeFileName submissionCodeFilePath submissionHostedLink clientApprovedForPayment clientApprovedAt resubmissionReason resubmissionRequestedAt createdAt')
       .sort({ createdAt: -1 })
       .lean();
     
@@ -184,7 +185,7 @@ exports.getMyClientProjects = async (req, res) => {
     }
 
     const projects = await Project.find({ clientId: req.user.id })
-      .select('title description budget deadline status assignedFreelancerId assignedFreelancerName submissionCodeFileName submissionCodeFilePath submissionHostedLink createdAt')
+      .select('title description budget deadline status assignedFreelancerId assignedFreelancerName submissionCodeFileName submissionCodeFilePath submissionHostedLink clientApprovedForPayment clientApprovedAt resubmissionReason resubmissionRequestedAt createdAt')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -202,7 +203,7 @@ exports.getFreelancerProjects = async (req, res) => {
   try {
     // Always use authenticated freelancer ID for consistency with session token.
     const projects = await Project.find({ assignedFreelancerId: req.user.id })
-      .select('title description clientId clientName budget deadline status submissionCodeFileName submissionCodeFilePath submissionHostedLink createdAt')
+      .select('title description clientId clientName budget deadline status submissionCodeFileName submissionCodeFilePath submissionHostedLink clientApprovedForPayment clientApprovedAt resubmissionReason resubmissionRequestedAt createdAt')
       .sort({ createdAt: -1 })
       .lean();
     
@@ -241,12 +242,115 @@ exports.submitProjectWork = async (req, res) => {
     }
 
     project.status = 'Submitted';
+    project.clientApprovedForPayment = false;
+    project.clientApprovedAt = null;
+    project.resubmissionReason = '';
+    project.resubmissionRequestedAt = null;
     await project.save();
+
+    await createNotification(req.app, {
+      recipientId: project.clientId,
+      actorId: req.user.id,
+      type: 'delivery_submitted',
+      title: 'Delivery submitted',
+      message: `${req.user.fullName || 'Freelancer'} submitted work for "${project.title}"`,
+      linkedEntityType: 'project',
+      linkedEntityId: String(project._id),
+      actionUrl: '/projects',
+      metadata: { projectId: String(project._id) }
+    });
 
     res.json({ success: true, project, message: 'Work submitted successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Client review submitted project (approve or request resubmission)
+// @route   PUT /api/projects/:id/review-submission
+// @access  Private (Project Owner)
+exports.reviewSubmittedProject = async (req, res) => {
+  try {
+    const { action, reason } = req.body || {};
+    if (!['approve', 'resubmit'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Invalid review action' });
+    }
+
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    if (String(project.clientId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to review this project' });
+    }
+
+    if (!project.assignedFreelancerId) {
+      return res.status(400).json({ success: false, message: 'No freelancer assigned for this project' });
+    }
+
+    if (project.status !== 'Submitted') {
+      return res.status(400).json({ success: false, message: 'Only submitted projects can be reviewed' });
+    }
+
+    if (action === 'approve') {
+      project.clientApprovedForPayment = true;
+      project.clientApprovedAt = new Date();
+      project.resubmissionReason = '';
+      project.resubmissionRequestedAt = null;
+      await project.save();
+
+      await createNotification(req.app, {
+        recipientId: project.assignedFreelancerId,
+        actorId: req.user.id,
+        type: 'project_approved',
+        title: 'Project approved',
+        message: `${req.user.fullName || 'Client'} approved "${project.title}". Payment is now unlocked.`,
+        linkedEntityType: 'project',
+        linkedEntityId: String(project._id),
+        actionUrl: '/my-projects',
+        metadata: { projectId: String(project._id) }
+      });
+
+      return res.json({ success: true, project, message: 'Submission approved. You can now pay the freelancer.' });
+    }
+
+    const cleanReason = String(reason || '').trim();
+    if (!cleanReason) {
+      return res.status(400).json({ success: false, message: 'Please provide reason for resubmission' });
+    }
+
+    project.status = 'In Progress';
+    project.clientApprovedForPayment = false;
+    project.clientApprovedAt = null;
+    project.resubmissionReason = cleanReason;
+    project.resubmissionRequestedAt = new Date();
+    await project.save();
+
+    await createNotification(req.app, {
+      recipientId: project.assignedFreelancerId,
+      actorId: req.user.id,
+      type: 'revision_requested',
+      title: 'Revision requested',
+      message: `${req.user.fullName || 'Client'} requested changes for "${project.title}"`,
+      linkedEntityType: 'project',
+      linkedEntityId: String(project._id),
+      actionUrl: '/my-projects',
+      metadata: {
+        projectId: String(project._id),
+        reason: cleanReason
+      }
+    });
+
+    return res.json({
+      success: true,
+      project,
+      message: 'Resubmission requested. Freelancer is moved back to working status.'
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

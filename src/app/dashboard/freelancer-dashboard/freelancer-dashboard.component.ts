@@ -1,8 +1,12 @@
-import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectorRef, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { BackendProject, ProjectService } from '../../services/project.service';
+import { BackendProject, BackendProposal, ProjectService } from '../../services/project.service';
+import { NotificationItem as BackendNotification, NotificationService } from '../../services/notification.service';
+import { MessageService } from '../../services/message.service';
+import { PaymentService } from '../../services/payment.service';
+import { Subscription } from 'rxjs';
 
 interface Project {
   id: string;
@@ -14,11 +18,12 @@ interface Project {
 }
 
 interface NotificationItem {
-  id: number;
+  id: string;
   type: string;
   message: string;
   time: string;
   read: boolean;
+  actionUrl?: string;
 }
 
 @Component({
@@ -28,55 +33,40 @@ interface NotificationItem {
   templateUrl: './freelancer-dashboard.component.html',
   styleUrls: ['./freelancer-dashboard.component.css']
 })
-export class FreelancerDashboardComponent implements OnInit {
+export class FreelancerDashboardComponent implements OnInit, OnDestroy {
+  private subscriptions = new Subscription();
   userData: any = null;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   
   // Navbar
   showNotifications = false;
   showProfileMenu = false;
   searchQuery = '';
-  notificationsCount = 3;
+  notificationsCount = 0;
   
-  // Mock data for stats
+  // Dashboard stats
   stats = {
-    totalEarnings: 125000,
+    totalEarnings: 0,
     activeProjects: 0,
-    pendingProposals: 7,
-    completedJobs: 23
+    pendingProposals: 0,
+    completedJobs: 0
   };
   
   // Active projects shown in dashboard card
   activeProjects: Project[] = [];
   
   // Notifications
-  notificationsList: NotificationItem[] = [
-    {
-      id: 1,
-      type: 'job',
-      message: 'New job matching your skills: React Developer',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'message',
-      message: 'You have a new message from Tech Solutions Inc.',
-      time: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'payment',
-      message: 'Payment received: ₹15,000',
-      time: '1 day ago',
-      read: true
-    }
-  ];
+  notificationsList: NotificationItem[] = [];
 
   constructor(
     private router: Router,
     private projectService: ProjectService,
-    private cdr: ChangeDetectorRef
+    private paymentService: PaymentService,
+    private cdr: ChangeDetectorRef,
+    private notificationService: NotificationService,
+    private messageService: MessageService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -93,7 +83,27 @@ export class FreelancerDashboardComponent implements OnInit {
       this.userData = JSON.parse(userDataStr);
     }
 
+    this.updateViewportState();
     this.loadCurrentUserAndActiveProjects();
+    this.bindRealtimeNotifications();
+    this.loadNotifications();
+    this.loadUnreadCount();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
   }
 
   private loadCurrentUserAndActiveProjects(): void {
@@ -110,18 +120,24 @@ export class FreelancerDashboardComponent implements OnInit {
         this.userData = currentUser;
         sessionStorage.setItem('userData', JSON.stringify(currentUser));
         localStorage.setItem('userData', JSON.stringify(currentUser));
-        this.loadActiveWorkingProjects(currentUser.id || currentUser._id);
+        const freelancerId = currentUser.id || currentUser._id;
+        this.loadActiveWorkingProjects(freelancerId);
+        this.loadFreelancerStats(freelancerId);
         this.cdr.detectChanges();
       },
       error: () => {
         const fallbackFreelancerId = this.userData?.id || this.userData?._id;
         if (fallbackFreelancerId) {
           this.loadActiveWorkingProjects(fallbackFreelancerId);
+          this.loadFreelancerStats(fallbackFreelancerId);
           return;
         }
 
         this.activeProjects = [];
         this.stats.activeProjects = 0;
+        this.stats.pendingProposals = 0;
+        this.stats.completedJobs = 0;
+        this.stats.totalEarnings = 0;
         this.cdr.detectChanges();
       }
     });
@@ -159,20 +175,88 @@ export class FreelancerDashboardComponent implements OnInit {
     });
   }
 
+  private loadFreelancerStats(freelancerId: string): void {
+    this.paymentService.getMyCompletedJobsCount().subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          this.stats.completedJobs = Number(response?.completedJobsCount || 0);
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.ngZone.run(() => {
+          this.stats.completedJobs = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+
+    this.projectService.getFreelancerProposals(freelancerId).subscribe({
+      next: (proposals: BackendProposal[]) => {
+        const pendingProposalsCount = (proposals || []).filter(
+          (proposal) => String(proposal.status || '').toLowerCase() === 'pending'
+        ).length;
+
+        this.ngZone.run(() => {
+          this.stats.pendingProposals = pendingProposalsCount;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.ngZone.run(() => {
+          this.stats.pendingProposals = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+
+    this.paymentService.getPayments(freelancerId, 'freelancer').subscribe({
+      next: (response) => {
+        const completedPayments = (response?.payments || []).filter(
+          (payment: any) => String(payment?.status || '').toLowerCase() === 'completed'
+        );
+        const totalEarnings = completedPayments.reduce((sum: number, payment: any) => sum + Number(payment?.amount || 0), 0);
+
+        this.ngZone.run(() => {
+          this.stats.totalEarnings = totalEarnings;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.ngZone.run(() => {
+          this.stats.totalEarnings = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
   private isWorkingProject(status: string): boolean {
     const normalized = String(status || '').trim().toLowerCase();
     return normalized === 'in progress' || normalized === 'working';
   }
 
-goToNotifications(event: Event): void {
-    event.stopPropagation();
-    this.router.navigate(['/freelancer-messages']);
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
   }
 
   toggleNotifications(event: Event): void {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     this.showProfileMenu = false;
+    if (this.showNotifications) {
+      this.loadNotifications();
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -188,6 +272,9 @@ goToNotifications(event: Event): void {
       this.showNotifications = false;
       this.showProfileMenu = false;
     }
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
   }
 
   search(): void {
@@ -200,21 +287,70 @@ goToNotifications(event: Event): void {
 
   getNotificationIcon(type: string): string {
     const icons: { [key: string]: string } = {
-      job: 'fas fa-briefcase',
-      payment: 'fas fa-dollar-sign',
-      message: 'fas fa-envelope',
-      project: 'fas fa-folder-open',
-      review: 'fas fa-star'
+      chat_message: 'fas fa-envelope',
+      order_created: 'fas fa-shopping-cart',
+      order_accepted: 'fas fa-check-circle',
+      delivery_submitted: 'fas fa-upload',
+      revision_requested: 'fas fa-rotate-left',
+      payment_success: 'fas fa-dollar-sign',
+      project_approved: 'fas fa-circle-check',
+      dispute_opened: 'fas fa-gavel',
+      system_alert: 'fas fa-triangle-exclamation'
     };
     return icons[type] || 'fas fa-bell';
   }
 
   get unreadCount(): number {
-    return this.notificationsList.filter(n => !n.read).length;
+    return this.notificationsCount;
   }
 
   markAllAsRead(): void {
-    this.notificationsList.forEach(n => n.read = true);
+    this.notificationService.markAllAsRead().subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.notificationsList = this.notificationsList.map((item) => ({ ...item, read: true }));
+          this.notificationsCount = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  onNotificationClick(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!notification.read) {
+      this.notificationService.markAsRead(notification.id).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.notificationsList = this.notificationsList.map((item) =>
+              item.id === notification.id ? { ...item, read: true } : item
+            );
+            this.notificationsCount = Math.max(0, this.notificationsCount - 1);
+            this.cdr.detectChanges();
+          });
+        }
+      });
+    }
+    if (notification.actionUrl) {
+      this.showNotifications = false;
+      this.router.navigateByUrl(notification.actionUrl);
+    }
+  }
+
+  deleteNotification(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    this.notificationService.archiveNotification(notification.id).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          const wasUnread = !notification.read;
+          this.notificationsList = this.notificationsList.filter((item) => item.id !== notification.id);
+          if (wasUnread) {
+            this.notificationsCount = Math.max(0, this.notificationsCount - 1);
+          }
+          this.cdr.detectChanges();
+        });
+      }
+    });
   }
 
   logout(): void {
@@ -227,32 +363,128 @@ goToNotifications(event: Event): void {
 
   goToProfile(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
     this.router.navigate(['/freelancer-profile']);
   }
 
   goToSettings(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
     this.router.navigate(['/freelancer-settings']);
   }
 
   goToFindJobs(): void {
+    this.closeSidebar();
     this.router.navigate(['/find-jobs']);
   }
 
   goToMyGigs(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-gigs']);
   }
 
   goToProjects(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-projects']);
   }
 
   goToMessages(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-messages']);
   }
 
   goToEarnings(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-earnings']);
+  }
+
+  openMessagesFromNotification(event?: Event): void {
+    event?.preventDefault();
+    this.showNotifications = false;
+    this.router.navigate(['/freelancer-messages']);
+  }
+
+  private bindRealtimeNotifications(): void {
+    const token = this.getAuthToken();
+    if (token) {
+      this.messageService.connect(token);
+    }
+
+    this.subscriptions.add(
+      this.messageService.socketNotification$.subscribe((notification) => {
+        if (!notification) return;
+        this.ngZone.run(() => {
+          const mapped = this.mapNotification(notification);
+          this.notificationsList = [mapped, ...this.notificationsList];
+          this.notificationsCount += mapped.read ? 0 : 1;
+          this.cdr.detectChanges();
+        });
+      })
+    );
+
+    this.subscriptions.add(
+      this.messageService.socketNotificationCount$.subscribe((count) => {
+        if (count === null || typeof count !== 'number') return;
+        this.ngZone.run(() => {
+          this.notificationsCount = Math.max(0, count);
+          this.cdr.detectChanges();
+        });
+      })
+    );
+  }
+
+  private loadNotifications(): void {
+    this.notificationService.getMyNotifications(20, 1).subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.notificationsList = (res?.notifications || []).map((item: BackendNotification) =>
+            this.mapNotification(item)
+          );
+          this.notificationsCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private loadUnreadCount(): void {
+    this.notificationService.getUnreadCount().subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.notificationsCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private mapNotification(notification: BackendNotification): NotificationItem {
+    return {
+      id: String(notification.id),
+      type: notification.type,
+      message: notification.message || notification.title || 'New update',
+      time: this.toRelativeTime(notification.createdAt),
+      read: !!notification.isRead,
+      actionUrl: notification.actionUrl || ''
+    };
+  }
+
+  private toRelativeTime(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? 's' : ''} ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+  }
+
+  private getAuthToken(): string {
+    const raw = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
+    return raw.replace(/^"(.*)"$/, '$1').trim();
   }
 }
 

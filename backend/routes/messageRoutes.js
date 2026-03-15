@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  getConversations, 
-  getMessages, 
-  sendMessage,
-  markAsRead
+  ensureConversation,
+  getMyConversations,
+  getConversationMessages,
+  sendConversationMessage,
+  markConversationAsRead
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/conversations/:userId', protect, getConversations);
-router.get('/:userId/:partnerId', protect, getMessages);
-router.post('/', protect, sendMessage);
-router.put('/read/:partnerId', protect, markAsRead);
+router.post('/conversations/ensure', protect, ensureConversation);
+router.get('/conversations', protect, getMyConversations);
+router.get('/conversations/:conversationId/messages', protect, getConversationMessages);
+router.post('/conversations/:conversationId/messages', protect, sendConversationMessage);
+router.put('/conversations/:conversationId/read', protect, markConversationAsRead);
 
 module.exports = router;
 

@@ -108,6 +108,15 @@ getPayments(userId?: string, role?: string): Observable<{ success: boolean; paym
   }
 
   /**
+   * Get completed jobs count for logged-in freelancer
+   */
+  getMyCompletedJobsCount(): Observable<{ success: boolean; completedJobsCount: number }> {
+    return this.http.get<{ success: boolean; completedJobsCount: number }>(`${this.apiUrl}/payments/completed-jobs/me`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
    * Update payment status
    */
   updatePaymentStatus(paymentId: string, status: string): Observable<{ success: boolean; payment: Payment }> {

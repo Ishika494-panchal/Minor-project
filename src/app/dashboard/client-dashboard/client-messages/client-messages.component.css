@@ -1,0 +1,166 @@
+.top-navbar {
+  gap: 12px;
+}
+
+.navbar-left {
+  flex: 1;
+  min-width: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-bar input {
+  min-width: 0;
+}
+
+.navbar-right {
+  flex-shrink: 0;
+}
+
+.profile-dropdown {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.profile-info {
+  min-width: 0;
+}
+
+.profile-name {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-dropdown .profile-avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.conversation-item {
+  align-items: flex-start;
+}
+
+.conv-details {
+  min-width: 0;
+}
+
+.conv-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .top-navbar {
+    justify-content: space-between !important;
+    margin-bottom: 14px;
+  }
+
+  .navbar-left {
+    flex: 1;
+  }
+
+  .search-bar {
+    max-width: 320px;
+  }
+
+  .profile-info,
+  .profile-dropdown > .fa-chevron-down {
+    display: none;
+  }
+
+  .profile-dropdown {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .profile-dropdown .profile-avatar {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 10px !important;
+  }
+
+  .top-navbar {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .navbar-left {
+    width: 100%;
+  }
+
+  .search-bar {
+    max-width: none;
+    padding: 8px 10px;
+  }
+
+  .search-bar input {
+    font-size: 13px;
+  }
+
+  .messages-layout {
+    height: calc(100vh - 155px) !important;
+    border-radius: 10px;
+  }
+
+  .conversations-panel {
+    max-height: 36vh !important;
+  }
+
+  .conversation-item {
+    padding: 12px 14px;
+  }
+
+  .conv-header {
+    gap: 8px;
+  }
+
+  .conv-time {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-menu-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .search-bar {
+    padding: 7px 10px;
+  }
+
+  .search-bar i {
+    font-size: 14px;
+  }
+
+  .search-bar input {
+    font-size: 12px;
+  }
+
+  .messages-layout {
+    height: calc(100vh - 148px) !important;
+  }
+}

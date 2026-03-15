@@ -240,15 +240,6 @@
   color: #666;
 }
 
-/* Recent Projects */
-.recent-projects {
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -260,21 +251,6 @@
   font-size: 20px;
   color: #1a5c3a;
   margin: 0;
-}
-
-.view-all-btn {
-  padding: 8px 16px;
-  background: transparent;
-  border: 1px solid #1a5c3a;
-  color: #1a5c3a;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.view-all-btn:hover {
-  background: #1a5c3a;
-  color: white;
 }
 
 .projects-table {
@@ -340,10 +316,24 @@ td {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
+.quick-actions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 .quick-actions h2 {
   font-size: 20px;
   color: #1a5c3a;
-  margin: 0 0 20px 0;
+  margin: 0;
+}
+
+.quick-actions-header p {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
 }
 
 .actions-grid {
@@ -353,29 +343,59 @@ td {
 }
 
 .action-card {
-  padding: 20px;
-  background: #f5f5f0;
-  border-radius: 10px;
-  text-align: center;
+  padding: 18px 16px;
+  background: #f8faf8;
+  border: 1px solid #e6eee9;
+  border-radius: 12px;
+  text-align: left;
   cursor: pointer;
   transition: all 0.3s;
+  text-decoration: none;
+  color: #1a5c3a;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .action-card:hover {
   background: #1a5c3a;
-  color: white;
+  color: #fff;
   transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(26, 92, 58, 0.24);
 }
 
-.action-card i {
-  font-size: 24px;
-  margin-bottom: 10px;
-  display: block;
+.action-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(26, 92, 58, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.action-card span {
+.action-icon i {
+  font-size: 18px;
+}
+
+.action-title {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
+}
+
+.action-subtitle {
+  font-size: 12px;
+  color: #667085;
+  line-height: 1.3;
+}
+
+.action-card:hover .action-icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.action-card:hover .action-subtitle {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Responsive */
@@ -406,6 +426,11 @@ td {
   .stats-grid,
   .actions-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quick-actions-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

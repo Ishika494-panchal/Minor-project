@@ -1,7 +1,10 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { ChatConversation, ChatMessage, MessageService } from '../../../services/message.service';
+import { NotificationItem as BackendNotification, NotificationService } from '../../../services/notification.service';
 
 interface Message {
   id: string;
@@ -20,6 +23,8 @@ interface Attachment {
 
 interface Conversation {
   id: string;
+  partnerId: string;
+  projectId: string | null;
   name: string;
   avatar: string;
   lastMessage: string;
@@ -30,11 +35,12 @@ interface Conversation {
 }
 
 interface NotificationItem {
-  id: number;
+  id: string;
   type: string;
   message: string;
   time: string;
   read: boolean;
+  actionUrl?: string;
 }
 
 @Component({
@@ -44,225 +50,341 @@ interface NotificationItem {
   templateUrl: './freelancer-messages.component.html',
   styleUrls: ['./freelancer-messages.component.css']
 })
-export class FreelancerMessagesComponent implements OnInit {
-  private readonly storageKeyPrefix = 'freelancerMessagesState:';
-  // Navbar
+export class FreelancerMessagesComponent implements OnInit, OnDestroy {
+  private subscriptions = new Subscription();
+  private currentUserId = '';
+
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   showNotifications = false;
   showProfileMenu = false;
   searchQuery = '';
   userData: any = null;
 
-  // Notifications
-  notificationsList: NotificationItem[] = [
-    {
-      id: 1,
-      type: 'job',
-      message: 'New job matching your skills: React Developer',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'message',
-      message: 'You have a new message from Tech Solutions Inc.',
-      time: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'payment',
-      message: 'Payment received: ₹15,000',
-      time: '1 day ago',
-      read: true
-    }
-  ];
+  notificationsList: NotificationItem[] = [];
+  unreadBellCount = 0;
 
-  // Conversations
-  conversations: Conversation[] = [
-    {
-      id: '1',
-      name: 'Rahul Sharma',
-      avatar: 'assets/client.jpeg',
-      lastMessage: 'Can you deliver the project by Monday?',
-      lastMessageTime: '2 min ago',
-      unread: 2,
-      online: true,
-      messages: [
-        { id: '1', text: 'Hello! I need a landing page design.', time: '10:30 AM', sent: false },
-        { id: '2', text: 'Sure, I can help with that. What are your requirements?', time: '10:32 AM', sent: true },
-        { id: '3', text: 'I need a modern, responsive design for my tech startup.', time: '10:35 AM', sent: false },
-        { id: '4', text: 'That sounds great! I have extensive experience in startup designs.', time: '10:38 AM', sent: true },
-        { id: '5', text: 'Can you deliver the project by Monday?', time: '10:40 AM', sent: false }
-      ]
-    },
-    {
-      id: '2',
-      name: 'Priya Patel',
-      avatar: 'assets/client.jpeg',
-      lastMessage: 'Thank you for the quick delivery!',
-      lastMessageTime: '1 hour ago',
-      unread: 0,
-      online: false,
-      messages: [
-        { id: '1', text: 'Hi, I loved your portfolio!', time: '09:00 AM', sent: false },
-        { id: '2', text: 'Thank you! Happy to work with you.', time: '09:15 AM', sent: true },
-        { id: '3', text: 'Thank you for the quick delivery!', time: '11:00 AM', sent: false }
-      ]
-    },
-    {
-      id: '3',
-      name: 'Amit Kumar',
-      avatar: 'assets/client.jpeg',
-      lastMessage: 'Let me review and get back to you.',
-      lastMessageTime: 'Yesterday',
-      unread: 1,
-      online: true,
-      messages: [
-        { id: '1', text: 'I have a new project for you.', time: 'Yesterday', sent: false },
-        { id: '2', text: 'That sounds interesting! Tell me more.', time: 'Yesterday', sent: true },
-        { id: '3', text: 'Let me review and get back to you.', time: 'Yesterday', sent: false }
-      ]
-    },
-    {
-      id: '4',
-      name: 'Sneha Gupta',
-      avatar: 'assets/client.jpeg',
-      lastMessage: 'The design looks amazing!',
-      lastMessageTime: '2 days ago',
-      unread: 0,
-      online: false,
-      messages: [
-        { id: '1', text: 'I received the initial designs.', time: '2 days ago', sent: false },
-        { id: '2', text: 'Great! Let me know your feedback.', time: '2 days ago', sent: true },
-        { id: '3', text: 'The design looks amazing!', time: '2 days ago', sent: false }
-      ]
-    }
-  ];
-
-  // Selected conversation
+  conversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
+  mobileChatOpen = false;
+  newMessage = '';
+  isSending = false;
 
-  // New message input
-  newMessage: string = '';
+  allowedFileTypes = ['.pdf', '.png', '.jpg', '.jpeg', '.zip'];
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private messageService: MessageService,
+    private notificationService: NotificationService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
-    if (userDataStr) {
-      this.userData = JSON.parse(userDataStr);
-    } else {
-      this.userData = {
-        fullName: 'John Doe',
-        email: 'john@example.com',
-        avatar: ''
-      };
-    }
-    
-    // Select first conversation by default
-    if (this.conversations.length > 0) {
-      this.selectedConversation = this.conversations[0];
-    }
+    this.updateViewportState();
+    const rawUser = localStorage.getItem('userData') || sessionStorage.getItem('userData') || '';
+    this.userData = rawUser ? JSON.parse(rawUser) : null;
+    this.currentUserId = this.userData?._id || this.userData?.id || '';
+    const token = this.getAuthToken();
+    if (!token || !this.currentUserId) return;
 
-    const storedConversations = this.loadConversationsState();
-    if (storedConversations && storedConversations.length > 0) {
-      this.conversations = storedConversations;
-      this.selectedConversation = this.conversations[0] || null;
-    } else {
-      this.saveConversationsState();
-    }
+    this.messageService.connect(token);
+    this.bindRealtime();
+    this.loadNotifications();
+    this.loadUnreadCount();
+    this.loadConversations(() => {
+      const partnerId = this.route.snapshot.queryParamMap.get('partnerId') || '';
+      const partnerName = this.route.snapshot.queryParamMap.get('partnerName') || '';
+      const projectId = this.route.snapshot.queryParamMap.get('projectId') || null;
+      if (partnerId) {
+        this.ensureConversation(partnerId, partnerName, projectId);
+      } else if (!this.isMobileOrTablet && this.conversations.length) {
+        this.selectConversation(this.conversations[0]);
+      }
+    });
+  }
 
-    const partnerId = this.route.snapshot.queryParamMap.get('partnerId') || '';
-    const partnerName = this.route.snapshot.queryParamMap.get('partnerName') || '';
-    if (partnerId) {
-      this.openOrCreateConversation(partnerId, partnerName);
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    const wasMobile = this.isMobileOrTablet;
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+      this.mobileChatOpen = false;
+      if (!this.selectedConversation && this.conversations.length) {
+        this.selectConversation(this.conversations[0]);
+      }
+    } else if (!wasMobile) {
+      this.mobileChatOpen = false;
     }
   }
 
-  private openOrCreateConversation(partnerId: string, partnerName: string): void {
-    const existing = this.conversations.find(
-      (c) =>
-        c.id === partnerId ||
-        c.name.trim().toLowerCase() === partnerName.trim().toLowerCase()
+  private bindRealtime(): void {
+    this.subscriptions.add(
+      this.messageService.socketMessage$.subscribe((msg) => {
+        if (!msg) return;
+        this.ngZone.run(() => {
+          const conversationId = String(msg.conversationId || '');
+          if (this.selectedConversation?.id === conversationId) {
+            const mapped = this.mapMessage(msg);
+            const exists = this.selectedConversation.messages.some((m) => m.id === mapped.id);
+            if (!exists) this.selectedConversation.messages.push(mapped);
+            if (String(msg.receiverId?._id || '') === this.currentUserId) {
+              this.messageService.markAsRead(conversationId).subscribe();
+            }
+          }
+          this.loadConversations();
+          this.cdr.detectChanges();
+        });
+      })
     );
 
-    if (existing) {
-      this.selectConversation(existing);
-      return;
-    }
+    this.subscriptions.add(
+      this.messageService.conversationRefresh$.subscribe((conversationId) => {
+        if (!conversationId) return;
+        this.ngZone.run(() => {
+          this.loadConversations();
+          this.cdr.detectChanges();
+        });
+      })
+    );
 
-    const newConversation: Conversation = {
-      id: partnerId,
-      name: partnerName || 'Client',
-      avatar: 'assets/client.jpeg',
-      lastMessage: 'Start your conversation.',
-      lastMessageTime: 'Just now',
-      unread: 0,
-      online: false,
-      messages: []
-    };
+    this.subscriptions.add(
+      this.messageService.socketNotification$.subscribe((notification) => {
+        if (!notification) return;
+        this.ngZone.run(() => {
+          const mapped = this.mapNotification(notification);
+          this.notificationsList = [mapped, ...this.notificationsList];
+          this.unreadBellCount += mapped.read ? 0 : 1;
+          this.cdr.detectChanges();
+        });
+      })
+    );
 
-    this.conversations = [newConversation, ...this.conversations];
-    this.selectConversation(newConversation);
-    this.saveConversationsState();
+    this.subscriptions.add(
+      this.messageService.socketNotificationCount$.subscribe((count) => {
+        if (count === null || typeof count !== 'number') return;
+        this.ngZone.run(() => {
+          this.unreadBellCount = Math.max(0, count);
+          this.cdr.detectChanges();
+        });
+      })
+    );
+  }
+
+  private ensureConversation(partnerId: string, partnerName: string, projectId: string | null): void {
+    this.messageService.ensureConversation({
+      partnerId,
+      projectId,
+      conversationType: projectId ? 'project' : 'direct'
+    }).subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          const ensuredId = String(res?.conversation?._id || '');
+          this.loadConversations(() => {
+            const target = this.conversations.find((c) => c.id === ensuredId);
+            if (target) {
+              this.selectConversation(target);
+              return;
+            }
+            if (partnerName) {
+              this.selectedConversation = {
+                id: ensuredId,
+                partnerId,
+                projectId,
+                name: partnerName,
+                avatar: 'assets/client.jpeg',
+                lastMessage: 'Start your conversation.',
+                lastMessageTime: 'Just now',
+                unread: 0,
+                online: false,
+                messages: []
+              };
+            }
+            this.cdr.detectChanges();
+          });
+        });
+      }
+    });
+  }
+
+  private loadConversations(after?: () => void): void {
+    this.messageService.getConversations().subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          const selectedId = this.selectedConversation?.id || '';
+          this.conversations = (res?.conversations || []).map((conv) => this.mapConversation(conv));
+          if (selectedId) {
+            const selected = this.conversations.find((conv) => conv.id === selectedId);
+            if (selected) {
+              this.selectedConversation = {
+                ...selected,
+                messages: this.selectedConversation?.messages || []
+              };
+            }
+          }
+          after?.();
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.ngZone.run(() => {
+          after?.();
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  private loadMessages(conversation: Conversation): void {
+    this.messageService.getMessages(conversation.id, 50).subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          const messages = (res?.messages || []).map((msg) => this.mapMessage(msg));
+          conversation.messages = messages;
+          if (this.selectedConversation?.id === conversation.id) {
+            this.selectedConversation.messages = messages;
+          }
+          this.cdr.detectChanges();
+        });
+      }
+    });
   }
 
   selectConversation(conversation: Conversation): void {
     this.selectedConversation = conversation;
-    conversation.unread = 0;
-    this.saveConversationsState();
+    this.selectedConversation.unread = 0;
+    this.messageService.joinRoom(conversation.id);
+    this.loadMessages(conversation);
+    this.messageService.markAsRead(conversation.id).subscribe({
+      next: () => this.loadConversations()
+    });
+    if (this.isMobileOrTablet) this.mobileChatOpen = true;
+  }
+
+  backToConversationList(): void {
+    if (this.isMobileOrTablet) this.mobileChatOpen = false;
+  }
+
+  get showConversationList(): boolean {
+    return !this.isMobileOrTablet || !this.mobileChatOpen;
+  }
+
+  get showChatPanel(): boolean {
+    return !this.isMobileOrTablet || this.mobileChatOpen;
   }
 
   sendMessage(): void {
-    if (this.newMessage.trim() && this.selectedConversation) {
-      const targetConversation = this.selectedConversation;
-      const message: Message = {
-        id: Date.now().toString(),
-        text: this.newMessage.trim(),
-        time: this.getCurrentTime(),
-        sent: true
-      };
-
-      targetConversation.messages.push(message);
-      targetConversation.lastMessage = this.newMessage.trim();
-      targetConversation.lastMessageTime = 'Just now';
-      
-      this.newMessage = '';
-      this.saveConversationsState();
-
-      // Simulate reply after 2 seconds
-      setTimeout(() => {
-        const reply: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'Thanks for your message! I\'ll get back to you soon.',
-          time: this.getCurrentTime(),
-          sent: false
-        };
-        targetConversation.messages.push(reply);
-        targetConversation.lastMessage = reply.text;
-        targetConversation.lastMessageTime = 'Just now';
-        this.saveConversationsState();
-      }, 2000);
-    }
-  }
-
-  getCurrentTime(): string {
-    const now = new Date();
-    return now.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
+    if (!this.selectedConversation || !this.newMessage.trim() || this.isSending) return;
+    this.isSending = true;
+    this.messageService.sendMessage(this.selectedConversation.id, {
+      textContent: this.newMessage.trim(),
+      messageType: 'text'
+    }).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.newMessage = '';
+          this.isSending = false;
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.ngZone.run(() => {
+          this.isSending = false;
+          this.cdr.detectChanges();
+        });
+      }
     });
   }
 
-  // Navbar methods
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !this.selectedConversation) return;
+
+    const fileName = file.name.toLowerCase();
+    const allowed = this.allowedFileTypes.some((type) => fileName.endsWith(type));
+    if (!allowed) {
+      alert('Invalid file type. Please upload PDF, PNG, JPG, or ZIP files only.');
+      input.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds 10MB limit.');
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.messageService.sendMessage(this.selectedConversation!.id, {
+        textContent: this.newMessage.trim() || '',
+        messageType: this.getFileType(fileName) === 'image' ? 'image' : 'file',
+        attachment: {
+          fileName: file.name,
+          fileType: file.type || this.getFileType(fileName),
+          fileSize: file.size,
+          fileData: String(reader.result || '')
+        }
+      }).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.newMessage = '';
+            this.cdr.detectChanges();
+          });
+        }
+      });
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+
+  getFileType(fileName: string): string {
+    if (fileName.endsWith('.pdf')) return 'pdf';
+    if (fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) return 'image';
+    if (fileName.endsWith('.zip')) return 'zip';
+    return 'file';
+  }
+
+  getFileIcon(type: string): string {
+    if (type === 'pdf') return 'fas fa-file-pdf';
+    if (type === 'image') return 'fas fa-file-image';
+    if (type === 'zip') return 'fas fa-file-archive';
+    return 'fas fa-file';
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) return;
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) this.isSidebarOpen = false;
+  }
+
   toggleNotifications(event: Event): void {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     this.showProfileMenu = false;
+    if (this.showNotifications) {
+      this.loadNotifications();
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -278,32 +400,82 @@ export class FreelancerMessagesComponent implements OnInit {
       this.showNotifications = false;
       this.showProfileMenu = false;
     }
-  }
-
-  search(): void {
-    console.log('Searching:', this.searchQuery);
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
   }
 
   getNotificationIcon(type: string): string {
-    const icons: { [key: string]: string } = {
-      job: 'fas fa-briefcase',
-      payment: 'fas fa-dollar-sign',
-      message: 'fas fa-envelope',
-      project: 'fas fa-folder-open',
-      review: 'fas fa-star'
+    const icons: Record<string, string> = {
+      chat_message: 'fas fa-envelope',
+      order_created: 'fas fa-shopping-cart',
+      order_accepted: 'fas fa-check-circle',
+      delivery_submitted: 'fas fa-upload',
+      revision_requested: 'fas fa-rotate-left',
+      payment_success: 'fas fa-dollar-sign',
+      project_approved: 'fas fa-circle-check',
+      dispute_opened: 'fas fa-gavel',
+      system_alert: 'fas fa-triangle-exclamation'
     };
     return icons[type] || 'fas fa-bell';
   }
 
   get unreadCount(): number {
-    return this.notificationsList.filter(n => !n.read).length;
+    return this.unreadBellCount;
   }
 
   markAllAsRead(): void {
-    this.notificationsList.forEach(n => n.read = true);
+    this.notificationService.markAllAsRead().subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.notificationsList = this.notificationsList.map((n) => ({ ...n, read: true }));
+          this.unreadBellCount = 0;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  onNotificationClick(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!notification.read) {
+      this.notificationService.markAsRead(notification.id).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.notificationsList = this.notificationsList.map((item) =>
+              item.id === notification.id ? { ...item, read: true } : item
+            );
+            this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+            this.cdr.detectChanges();
+          });
+        }
+      });
+    }
+
+    if (notification.actionUrl) {
+      this.showNotifications = false;
+      this.router.navigateByUrl(notification.actionUrl);
+    }
+  }
+
+  deleteNotification(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    this.notificationService.archiveNotification(notification.id).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          const wasUnread = !notification.read;
+          this.notificationsList = this.notificationsList.filter((item) => item.id !== notification.id);
+          if (wasUnread) {
+            this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+          }
+          this.cdr.detectChanges();
+        });
+      }
+    });
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -311,149 +483,110 @@ export class FreelancerMessagesComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  goToProfile(): void {
-    this.showProfileMenu = false;
+  goToProfile(): void { this.showProfileMenu = false; this.closeSidebar(); this.router.navigate(['/freelancer-profile']); }
+  goToSettings(): void { this.showProfileMenu = false; this.closeSidebar(); this.router.navigate(['/freelancer-settings']); }
+  goToDashboard(): void { this.closeSidebar(); this.router.navigate(['/freelancer-dashboard']); }
+  goToFindJobs(): void { this.closeSidebar(); this.router.navigate(['/find-jobs']); }
+  goToMyGigs(): void { this.closeSidebar(); this.router.navigate(['/my-gigs']); }
+  goToProjects(): void { this.closeSidebar(); this.router.navigate(['/my-projects']); }
+  goToEarnings(): void { this.closeSidebar(); this.router.navigate(['/freelancer-earnings']); }
+
+  onAvatarError(event: Event): void {
+    const img = event.target as HTMLImageElement | null;
+    if (!img) return;
+    img.onerror = null;
+    img.src = 'assets/client.jpeg';
   }
 
-  goToSettings(): void {
-    this.showProfileMenu = false;
+  private mapConversation(conversation: ChatConversation): Conversation {
+    return {
+      id: conversation.id,
+      partnerId: conversation.partner.id,
+      projectId: conversation.projectId,
+      name: conversation.partner.fullName || 'Client',
+      avatar: conversation.partner.profileImage || 'assets/client.jpeg',
+      lastMessage: conversation.lastMessage || 'Start your conversation.',
+      lastMessageTime: this.toDisplayTime(conversation.lastMessageAt),
+      unread: conversation.unreadCount || 0,
+      online: false,
+      messages: []
+    };
   }
 
-  goToDashboard(): void {
-    this.router.navigate(['/freelancer-dashboard']);
+  private mapMessage(message: ChatMessage): Message {
+    return {
+      id: String(message._id),
+      text: message.isDeleted ? 'Message deleted' : (message.textContent || ''),
+      time: this.toDisplayTime(message.createdAt),
+      sent: String(message.senderId?._id || '') === this.currentUserId,
+      attachment: message.attachment?.fileName ? {
+        name: message.attachment.fileName || 'Attachment',
+        type: this.getFileType(message.attachment.fileName || ''),
+        size: Number(message.attachment.fileSize || 0),
+        url: message.attachment.fileData || message.attachment.fileUrl || ''
+      } : undefined
+    };
   }
 
-  goToFindJobs(): void {
-    this.router.navigate(['/find-jobs']);
+  private toDisplayTime(value: string | Date): string {
+    if (!value) return 'Just now';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   }
 
-  goToMyGigs(): void {
-    this.router.navigate(['/my-gigs']);
+  private getAuthToken(): string {
+    const raw = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
+    return raw.replace(/^"(.*)"$/, '$1').trim();
   }
 
-  goToProjects(): void {
-    this.router.navigate(['/my-projects']);
-  }
-
-  goToEarnings(): void {
-    this.router.navigate(['/freelancer-earnings']);
-  }
-
-  // File attachment handling
-  allowedFileTypes = ['.pdf', '.png', '.jpg', '.jpeg', '.zip'];
-  
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      const fileName = file.name.toLowerCase();
-      
-      // Check if file type is allowed
-      const isAllowed = this.allowedFileTypes.some(type => fileName.endsWith(type));
-      
-      if (!isAllowed) {
-        alert('Invalid file type. Please upload PDF, PNG, JPG, or ZIP files only.');
-        return;
+  private loadNotifications(): void {
+    this.notificationService.getMyNotifications(30, 1).subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.notificationsList = (res?.notifications || []).map((item: BackendNotification) =>
+            this.mapNotification(item)
+          );
+          this.unreadBellCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
       }
-      
-      // Check file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size exceeds 10MB limit.');
-        return;
-      }
-      
-      // Create attachment object
-      const attachment: Attachment = {
-        name: file.name,
-        type: this.getFileType(fileName),
-        size: file.size
-      };
-      
-      // Send message with attachment
-      if (this.selectedConversation) {
-        const targetConversation = this.selectedConversation;
-        const message: Message = {
-          id: Date.now().toString(),
-          text: this.newMessage.trim() || `Sent attachment: ${file.name}`,
-          time: this.getCurrentTime(),
-          sent: true,
-          attachment: attachment
-        };
-        
-        targetConversation.messages.push(message);
-        targetConversation.lastMessage = message.text;
-        targetConversation.lastMessageTime = 'Just now';
-        
-        this.newMessage = '';
-        this.saveConversationsState();
-        
-        // Simulate reply after 2 seconds
-        setTimeout(() => {
-          const reply: Message = {
-            id: (Date.now() + 1).toString(),
-            text: 'Thanks for the attachment! I\'ll review it and get back to you.',
-            time: this.getCurrentTime(),
-            sent: false
-          };
-          targetConversation.messages.push(reply);
-          targetConversation.lastMessage = reply.text;
-          targetConversation.lastMessageTime = 'Just now';
-          this.saveConversationsState();
-        }, 2000);
-      }
-      
-      // Reset input
-      input.value = '';
-    }
-  }
-  
-  getFileType(fileName: string): string {
-    if (fileName.endsWith('.pdf')) return 'pdf';
-    if (fileName.endsWith('.png')) return 'image';
-    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) return 'image';
-    if (fileName.endsWith('.zip')) return 'zip';
-    return 'file';
-  }
-  
-  getFileIcon(type: string): string {
-    switch (type) {
-      case 'pdf': return 'fas fa-file-pdf';
-      case 'image': return 'fas fa-file-image';
-      case 'zip': return 'fas fa-file-archive';
-      default: return 'fas fa-file';
-    }
-  }
-  
-  formatFileSize(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    });
   }
 
-  private getStorageKey(): string {
-    const userId = this.userData?.id || this.userData?._id || this.userData?.email || 'unknown';
-    return `${this.storageKeyPrefix}${userId}`;
-  }
-
-  private loadConversationsState(): Conversation[] | null {
-    try {
-      const raw = localStorage.getItem(this.getStorageKey());
-      if (!raw) {
-        return null;
+  private loadUnreadCount(): void {
+    this.notificationService.getUnreadCount().subscribe({
+      next: (res) => {
+        this.ngZone.run(() => {
+          this.unreadBellCount = Number(res?.unreadCount || 0);
+          this.cdr.detectChanges();
+        });
       }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as Conversation[]) : null;
-    } catch {
-      return null;
-    }
+    });
   }
 
-  private saveConversationsState(): void {
-    try {
-      localStorage.setItem(this.getStorageKey(), JSON.stringify(this.conversations));
-    } catch {
-      // Ignore storage errors to avoid interrupting chat UX.
-    }
+  private mapNotification(notification: BackendNotification): NotificationItem {
+    return {
+      id: String(notification.id),
+      type: notification.type,
+      message: notification.message || notification.title || 'New update',
+      time: this.toRelativeTime(notification.createdAt),
+      read: !!notification.isRead,
+      actionUrl: notification.actionUrl || ''
+    };
+  }
+
+  private toRelativeTime(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? 's' : ''} ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
   }
 }
 

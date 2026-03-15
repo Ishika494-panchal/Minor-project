@@ -1,8 +1,10 @@
 const Payment = require('../models/Payment');
 const Project = require('../models/Project');
 const User = require('../models/User');
+const FreelancerCompletionStat = require('../models/FreelancerCompletionStat');
 const razorpay = require('../config/razorpay');
 const crypto = require('crypto');
+const { createNotification } = require('../services/notificationService');
 
 const resolveFreelancerName = async (project) => {
   if (project?.assignedFreelancerName && String(project.assignedFreelancerName).trim()) {
@@ -26,16 +28,48 @@ const buildRazorpayReceipt = (projectId) => {
   return `rcpt_${compactProjectId}_${compactTs}`;
 };
 
+const incrementCompletedJobsCounter = async (freelancerId, projectId) => {
+  if (!freelancerId || !projectId) return;
+
+  await FreelancerCompletionStat.updateOne(
+    {
+      freelancerId,
+      completedProjectIds: { $ne: projectId }
+    },
+    {
+      $inc: { completedJobsCount: 1 },
+      $addToSet: { completedProjectIds: projectId }
+    },
+    {
+      upsert: true
+    }
+  );
+};
+
 // @desc    Get all payments
 // @route   GET /api/payments
 // @access  Private
 exports.getPayments = async (req, res) => {
   try {
     const { status, userId, role } = req.query;
-    
+    const authUserId = req.user?.id || req.user?._id;
+    const authRole = req.user?.role;
     let query = {};
-    
-    if (userId) {
+
+    // Always scope non-admin users to their own payments.
+    if (authRole === 'client') {
+      query.clientId = authUserId;
+    } else if (authRole === 'freelancer') {
+      query.freelancerId = authUserId;
+    } else if (authRole === 'admin') {
+      // Admin can optionally filter by user and role.
+      if (userId && role === 'client') {
+        query.clientId = userId;
+      } else if (userId && role === 'freelancer') {
+        query.freelancerId = userId;
+      }
+    } else if (userId && role) {
+      // Fallback safety in case role is custom/legacy.
       if (role === 'client') {
         query.clientId = userId;
       } else if (role === 'freelancer') {
@@ -142,12 +176,54 @@ exports.updatePaymentStatus = async (req, res) => {
       await Project.findByIdAndUpdate(payment.projectId, {
         status: 'Completed'
       });
+      await incrementCompletedJobsCounter(payment.freelancerId, payment.projectId);
     }
     
     res.json({ success: true, payment });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get completed jobs count for logged-in freelancer
+// @route   GET /api/payments/completed-jobs/me
+// @access  Private
+exports.getMyCompletedJobsCount = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const completedProjectIdsFromPayments = await Payment.distinct('projectId', {
+      freelancerId: userId,
+      status: 'Completed'
+    });
+    const computedCount = completedProjectIdsFromPayments.length;
+
+    let doc = await FreelancerCompletionStat.findOne({ freelancerId: userId })
+      .select('completedJobsCount')
+      .lean();
+
+    if (!doc || Number(doc.completedJobsCount || 0) !== computedCount) {
+      await FreelancerCompletionStat.findOneAndUpdate(
+        { freelancerId: userId },
+        {
+          $set: {
+            completedJobsCount: computedCount,
+            completedProjectIds: completedProjectIdsFromPayments
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      doc = { completedJobsCount: computedCount };
+    }
+
+    return res.json({
+      success: true,
+      completedJobsCount: Number(doc?.completedJobsCount || 0)
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -361,16 +437,51 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Update project status to In Progress
+    // Mark project as completed after successful payment verification.
     await Project.findByIdAndUpdate(projectId, {
-      status: 'In Progress'
+      status: 'Completed'
     });
+
+    await incrementCompletedJobsCounter(payment.freelancerId, projectId);
 
     // Update freelancer earnings
     const freelancerEarnings = payment.amount - payment.platformFee;
     await User.findByIdAndUpdate(payment.freelancerId, {
       $inc: { earnings: freelancerEarnings }
     });
+
+    await Promise.all([
+      createNotification(req.app, {
+        recipientId: payment.freelancerId,
+        actorId: payment.clientId,
+        type: 'payment_success',
+        title: 'Payment received',
+        message: `Payment for "${payment.projectTitle}" has been successfully received and is under review.`,
+        linkedEntityType: 'payment',
+        linkedEntityId: String(payment._id),
+        actionUrl: '/my-projects',
+        metadata: {
+          projectId: String(projectId),
+          paymentId: String(payment._id),
+          amount: payment.amount
+        }
+      }),
+      createNotification(req.app, {
+        recipientId: payment.clientId,
+        actorId: req.user.id,
+        type: 'payment_success',
+        title: 'Payment successful',
+        message: `Your payment for "${payment.projectTitle}" is successful.`,
+        linkedEntityType: 'payment',
+        linkedEntityId: String(payment._id),
+        actionUrl: '/client-payments',
+        metadata: {
+          projectId: String(projectId),
+          paymentId: String(payment._id),
+          amount: payment.amount
+        }
+      })
+    ]);
 
     res.json({
       success: true,

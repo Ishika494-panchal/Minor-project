@@ -1,6 +1,6 @@
-<div class="dashboard-container">
+<div class="dashboard-container" [class.sidebar-open]="isSidebarOpen">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.open]="isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy</h2>
@@ -34,11 +34,15 @@
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="page-header">
+      <button class="mobile-menu-btn" (click)="toggleSidebar($event)" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
       <div class="header-title">
         <h1>Find Freelancers</h1>
         <p>Discover talented professionals for your projects</p>
@@ -98,19 +102,20 @@
 
     <!-- Results Count -->
     <div class="results-info">
-      <span>Showing {{ filteredFreelancers.length }} freelancer{{ filteredFreelancers.length !== 1 ? 's' : '' }}</span>
+      <span *ngIf="!isLoadingFreelancers">Showing {{ filteredFreelancers.length }} gig{{ filteredFreelancers.length !== 1 ? 's' : '' }}</span>
+      <span *ngIf="isLoadingFreelancers">Loading gigs...</span>
     </div>
 
     <!-- Freelancers Grid -->
-    <section class="freelancers-grid" *ngIf="filteredFreelancers.length > 0">
+    <section class="freelancers-grid" *ngIf="!isLoadingFreelancers && filteredFreelancers.length > 0">
       <div class="freelancer-card" *ngFor="let freelancer of filteredFreelancers">
         <div class="card-header">
           <div class="profile-picture">
             <img [src]="freelancer.profilePicture" [alt]="freelancer.fullName">
           </div>
           <div class="freelancer-info">
-            <h3>{{ freelancer.fullName }}</h3>
-            <span class="category">{{ freelancer.category }}</span>
+            <h3>{{ freelancer.gigTitle }}</h3>
+            <span class="category">by {{ freelancer.fullName }} • {{ freelancer.category }}</span>
           </div>
         </div>
         
@@ -140,33 +145,42 @@
               <span>{{ freelancer.location }}</span>
             </div>
             <div class="meta-item">
-              <i class="fas fa-briefcase"></i>
-              <span>{{ freelancer.completedProjects }} projects</span>
+              <i class="fas fa-clock"></i>
+              <span>{{ freelancer.deliveryDays }} days delivery</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-circle"></i>
+              <span>{{ freelancer.gigStatus }}</span>
             </div>
           </div>
         </div>
         
         <div class="card-footer">
           <div class="hourly-rate">
-<span class="rate">₹{{ freelancer.hourlyRate }}</span>
-            <span class="label">/hour</span>
+            <span class="rate">₹{{ freelancer.hourlyRate }}</span>
+            <span class="label">starting</span>
           </div>
           <div class="card-actions">
             <button class="view-profile-btn" (click)="viewProfile(freelancer)">
               View Profile
             </button>
-            <button class="hire-btn" (click)="hireFreelancer(freelancer)">
-              Hire
+            <button class="hire-btn" (click)="viewPortfolio(freelancer)">
+              View Portfolio
             </button>
           </div>
         </div>
       </div>
     </section>
 
+    <div class="loading-state" *ngIf="isLoadingFreelancers">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Loading gigs...</p>
+    </div>
+
     <!-- No Results -->
-    <div class="no-results" *ngIf="filteredFreelancers.length === 0">
+    <div class="no-results" *ngIf="!isLoadingFreelancers && filteredFreelancers.length === 0">
       <i class="fas fa-search"></i>
-      <h3>No freelancers found</h3>
+      <h3>No gigs found</h3>
       <p>Try adjusting your filters or search terms</p>
       <button class="clear-filters-btn" (click)="clearFilters()">
         Clear All Filters
@@ -186,8 +200,8 @@
       <div class="modal-profile">
         <img [src]="selectedFreelancer.profilePicture" [alt]="selectedFreelancer.fullName">
         <div class="modal-profile-info">
-          <h2>{{ selectedFreelancer.fullName }}</h2>
-          <span class="modal-category">{{ selectedFreelancer.category }}</span>
+          <h2>{{ selectedFreelancer.gigTitle }}</h2>
+          <span class="modal-category">by {{ selectedFreelancer.fullName }} • {{ selectedFreelancer.category }}</span>
           <div class="modal-rating">
             <i *ngFor="let star of getStarRating(selectedFreelancer.rating)" [class]="star"></i>
             <span>{{ selectedFreelancer.rating }} ({{ selectedFreelancer.reviewCount }} reviews)</span>
@@ -221,18 +235,18 @@
         </div>
         
         <div class="modal-info-item">
-          <i class="fas fa-briefcase"></i>
+          <i class="fas fa-clock"></i>
           <div>
-            <label>Completed Projects</label>
-            <span>{{ selectedFreelancer.completedProjects }}</span>
+            <label>Delivery Time</label>
+            <span>{{ selectedFreelancer.deliveryDays }} days</span>
           </div>
         </div>
         
         <div class="modal-info-item">
-          <i class="fas fa-calendar-alt"></i>
+          <i class="fas fa-circle"></i>
           <div>
-            <label>Member Since</label>
-            <span>{{ selectedFreelancer.memberSince }}</span>
+            <label>Status</label>
+            <span>{{ selectedFreelancer.gigStatus }}</span>
           </div>
         </div>
         
@@ -257,8 +271,8 @@
       <button class="message-btn" (click)="messageFreelancer(selectedFreelancer)">
         <i class="fas fa-envelope"></i> Send Message
       </button>
-      <button class="invite-btn" (click)="hireFreelancer(selectedFreelancer)">
-        <i class="fas fa-user-plus"></i> Invite to Project
+      <button class="invite-btn" (click)="viewPortfolio(selectedFreelancer)">
+        <i class="fas fa-link"></i> View Portfolio
       </button>
     </div>
   </div>

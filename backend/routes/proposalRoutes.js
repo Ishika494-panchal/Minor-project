@@ -4,6 +4,7 @@ const {
   getProposalsByProject, 
   getClientProposals,
   getFreelancerProposals, 
+  getFreelancerProfile,
   createProposal, 
   updateProposalStatus,
   getProposalById,
@@ -14,6 +15,7 @@ const { protect } = require('../middleware/authMiddleware');
 router.get('/project/:projectId', protect, getProposalsByProject);
 router.get('/client/:clientId', protect, getClientProposals);
 router.get('/freelancer/:freelancerId', protect, getFreelancerProposals);
+router.get('/freelancer-profile/:freelancerId', protect, getFreelancerProfile);
 router.get('/:id', protect, getProposalById);
 router.post('/', protect, createProposal);
 router.put('/:id/status', protect, updateProposalStatus);

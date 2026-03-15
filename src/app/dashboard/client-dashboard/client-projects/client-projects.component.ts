@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 // User type from models - import path resolved
 interface User {
   id?: string;
@@ -27,30 +28,40 @@ export interface ClientProject {
   clientName?: string;
   submissionHostedLink?: string;
   submissionCodeFileName?: string;
+  clientApprovedForPayment?: boolean;
+  resubmissionReason?: string;
+  resubmissionRequestedAt?: string | null;
 }
 
 @Component({
   selector: 'app-client-projects',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './client-projects.component.html',
-  styleUrls: ['./client-projects.component.css']
+  styleUrls: ['./client-projects.component.css', '../client-responsive-shared.css']
 })
 export class ClientProjectsComponent implements OnInit {
   userData: User | null = null;
+  isSidebarOpen = false;
   projects: ClientProject[] = [];
   selectedProject: ClientProject | null = null;
   showProjectDetails: boolean = false;
   isLoading = false;
   processingPaymentProjectId = '';
+  isReviewingProject = false;
+  showResubmissionDialog = false;
+  resubmissionReasonInput = '';
   infoMessage = '';
   private paidProjectIds = new Set<string>();
+  private optimisticPaidProjectIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private paymentService: PaymentService,
-    private projectService: ProjectService
+    private projectService: ProjectService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -140,14 +151,13 @@ export class ClientProjectsComponent implements OnInit {
       status: this.toClientStatus(p),
       freelancer: p.assignedFreelancerName || 'Pending',
       freelancerId: p.assignedFreelancerId || undefined,
-      paymentStatus:
-        this.paidProjectIds.has(String(p._id)) ||
-        p.status === 'In Progress' ||
-        p.status === 'Completed'
-          ? 'Paid'
-          : 'Pending',
+      // Payment status must come only from completed payment records.
+      paymentStatus: this.paidProjectIds.has(String(p._id)) ? 'Paid' : 'Pending',
       submissionHostedLink: p.submissionHostedLink || '',
-      submissionCodeFileName: p.submissionCodeFileName || ''
+      submissionCodeFileName: p.submissionCodeFileName || '',
+      clientApprovedForPayment: !!p.clientApprovedForPayment,
+      resubmissionReason: p.resubmissionReason || '',
+      resubmissionRequestedAt: p.resubmissionRequestedAt || null
     }));
   }
 
@@ -159,17 +169,26 @@ export class ClientProjectsComponent implements OnInit {
 
     this.paymentService.getPayments(clientId, 'client').subscribe({
       next: (response) => {
-        const payments = response?.payments || [];
-        this.paidProjectIds = new Set(
-          payments
-            .filter((p: any) => String(p?.status) === 'Completed')
-            .map((p: any) => String(p?.projectId?._id || p?.projectId || ''))
-            .filter((id: string) => !!id)
-        );
-        this.projects = this.projects.map((project) => ({
-          ...project,
-          paymentStatus: this.paidProjectIds.has(project._id) ? 'Paid' : project.paymentStatus || 'Pending'
-        }));
+        this.ngZone.run(() => {
+          const payments = response?.payments || [];
+          const paidFromDb = new Set(
+            payments
+              .filter((p: any) => String(p?.status) === 'Completed')
+              .map((p: any) => String(p?.projectId?._id || p?.projectId || ''))
+              .filter((id: string) => !!id)
+          );
+
+          // Keep successful payment state stable in UI even if list APIs return slightly later.
+          this.paidProjectIds = new Set([...paidFromDb, ...this.optimisticPaidProjectIds]);
+          this.projects = this.projects.map((project) => ({
+            ...project,
+            paymentStatus: this.paidProjectIds.has(project._id) ? 'Paid' : 'Pending'
+          }));
+          if (this.selectedProject?._id) {
+            this.selectedProject = this.projects.find((item) => item._id === this.selectedProject?._id) || this.selectedProject;
+          }
+          this.cdr.detectChanges();
+        });
       },
       error: () => {
         // Keep existing UI state if payments API fails.
@@ -194,13 +213,24 @@ export class ClientProjectsComponent implements OnInit {
   }
 
   viewProject(project: ClientProject): void {
-    this.selectedProject = project;
-    this.showProjectDetails = true;
+    this.ngZone.run(() => {
+      this.selectedProject = { ...project };
+      this.showProjectDetails = true;
+      this.showResubmissionDialog = false;
+      this.resubmissionReasonInput = '';
+      this.cdr.detectChanges();
+    });
   }
 
   closeProjectDetails(): void {
-    this.showProjectDetails = false;
-    this.selectedProject = null;
+    this.ngZone.run(() => {
+      this.showProjectDetails = false;
+      this.selectedProject = null;
+      this.showResubmissionDialog = false;
+      this.resubmissionReasonInput = '';
+      this.isReviewingProject = false;
+      this.cdr.detectChanges();
+    });
   }
 
   messageFreelancer(): void {
@@ -208,7 +238,8 @@ export class ClientProjectsComponent implements OnInit {
       this.router.navigate(['/client-messages'], {
         queryParams: {
           partnerId: this.selectedProject.freelancerId,
-          partnerName: this.selectedProject.freelancer || 'Freelancer'
+          partnerName: this.selectedProject.freelancer || 'Freelancer',
+          projectId: this.selectedProject._id
         }
       });
       return;
@@ -225,7 +256,8 @@ export class ClientProjectsComponent implements OnInit {
     this.router.navigate(['/client-messages'], {
       queryParams: {
         partnerId: project.freelancerId,
-        partnerName: project.freelancer || 'Freelancer'
+        partnerName: project.freelancer || 'Freelancer',
+        projectId: project._id
       }
     });
   }
@@ -279,7 +311,9 @@ export class ClientProjectsComponent implements OnInit {
       image: 'assets/skillzyy-logo.png',
       order_id: order.id,
       handler: (response: any) => {
-        this.verifyPayment(response, project, paymentId);
+        this.ngZone.run(() => {
+          this.verifyPayment(response, project, paymentId);
+        });
       },
       prefill: {
         name: this.userData?.fullName || 'Client',
@@ -290,8 +324,11 @@ export class ClientProjectsComponent implements OnInit {
       },
       modal: {
         ondismiss: () => {
-          this.processingPaymentProjectId = '';
-          alert('Payment cancelled');
+          this.ngZone.run(() => {
+            this.processingPaymentProjectId = '';
+            this.cdr.detectChanges();
+            alert('Payment cancelled');
+          });
         }
       }
     };
@@ -312,13 +349,21 @@ export class ClientProjectsComponent implements OnInit {
       ).toPromise();
 
       if (response?.success) {
-        this.paidProjectIds.add(project._id);
-        this.projects = this.projects.map((item) =>
-          item._id === project._id ? { ...item, paymentStatus: 'Paid' } : item
-        );
+        this.ngZone.run(() => {
+          this.optimisticPaidProjectIds.add(project._id);
+          this.paidProjectIds.add(project._id);
+          this.projects = this.projects.map((item) =>
+            item._id === project._id ? { ...item, paymentStatus: 'Paid' } : item
+          );
+          if (this.selectedProject?._id === project._id) {
+            this.selectedProject = { ...this.selectedProject, paymentStatus: 'Paid' };
+          }
+          this.cdr.detectChanges();
+        });
+
+        // Sync from DB in background without resetting immediate Paid state.
+        this.loadPaidProjectsState();
         alert('Payment successful! The freelancer will receive the money in 2-3 working days by Skillzyy.');
-        // Reload projects
-        this.loadProjects();
       } else {
         alert(response?.message || 'Payment verification failed');
       }
@@ -326,12 +371,20 @@ export class ClientProjectsComponent implements OnInit {
       console.error('Verification error:', error);
       alert(error?.error?.message || error?.message || 'Failed to verify payment');
     } finally {
-      this.processingPaymentProjectId = '';
+      this.ngZone.run(() => {
+        this.processingPaymentProjectId = '';
+        this.cdr.detectChanges();
+      });
     }
   }
 
   canPay(project: ClientProject): boolean {
-    return project.status === 'submitted' && !!project.freelancerId && project.paymentStatus !== 'Paid';
+    return (
+      project.status === 'submitted' &&
+      !!project.freelancerId &&
+      project.paymentStatus !== 'Paid' &&
+      !!project.clientApprovedForPayment
+    );
   }
 
   isProcessingPayment(project: ClientProject): boolean {
@@ -340,6 +393,114 @@ export class ClientProjectsComponent implements OnInit {
 
   isAnyPaymentInProgress(): boolean {
     return !!this.processingPaymentProjectId;
+  }
+
+  canReviewSubmission(project: ClientProject | null): boolean {
+    return !!project && project.status === 'submitted' && project.paymentStatus !== 'Paid';
+  }
+
+  openResubmissionDialog(): void {
+    if (!this.canReviewSubmission(this.selectedProject)) {
+      return;
+    }
+    this.ngZone.run(() => {
+      this.showResubmissionDialog = true;
+      this.resubmissionReasonInput = '';
+      this.cdr.detectChanges();
+    });
+  }
+
+  closeResubmissionDialog(): void {
+    this.ngZone.run(() => {
+      this.showResubmissionDialog = false;
+      this.resubmissionReasonInput = '';
+      this.cdr.detectChanges();
+    });
+  }
+
+  approveSubmission(): void {
+    if (!this.selectedProject || !this.canReviewSubmission(this.selectedProject) || this.isReviewingProject) {
+      return;
+    }
+
+    this.isReviewingProject = true;
+    this.projectService.reviewSubmittedProject(this.selectedProject._id, { action: 'approve' }).subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const updated = response.project as BackendProject | undefined;
+          if (updated) {
+            this.patchProjectReviewState(updated);
+          }
+          this.isReviewingProject = false;
+          this.cdr.detectChanges();
+        });
+        alert(response.message || 'Submission approved. You can now pay the freelancer.');
+      },
+      error: (error) => {
+        this.ngZone.run(() => {
+          this.isReviewingProject = false;
+          this.cdr.detectChanges();
+        });
+        alert(error?.error?.message || 'Failed to approve submission.');
+      }
+    });
+  }
+
+  requestResubmission(): void {
+    const reason = this.resubmissionReasonInput.trim();
+    if (!this.selectedProject || !this.canReviewSubmission(this.selectedProject) || this.isReviewingProject) {
+      return;
+    }
+
+    if (!reason) {
+      alert('Please add a reason for resubmission.');
+      return;
+    }
+
+    this.isReviewingProject = true;
+    this.projectService.reviewSubmittedProject(this.selectedProject._id, { action: 'resubmit', reason }).subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const updated = response.project as BackendProject | undefined;
+          if (updated) {
+            this.patchProjectReviewState(updated);
+          }
+          this.isReviewingProject = false;
+          this.closeResubmissionDialog();
+          this.cdr.detectChanges();
+        });
+        alert(response.message || 'Resubmission requested successfully.');
+      },
+      error: (error) => {
+        this.ngZone.run(() => {
+          this.isReviewingProject = false;
+          this.cdr.detectChanges();
+        });
+        alert(error?.error?.message || 'Failed to request resubmission.');
+      }
+    });
+  }
+
+  private patchProjectReviewState(updated: BackendProject): void {
+    const mappedStatus = this.toClientStatus(updated);
+    this.projects = this.projects.map((project) =>
+      project._id === updated._id
+        ? {
+            ...project,
+            status: mappedStatus,
+            clientApprovedForPayment: !!updated.clientApprovedForPayment,
+            resubmissionReason: updated.resubmissionReason || '',
+            resubmissionRequestedAt: updated.resubmissionRequestedAt || null,
+            submissionHostedLink: updated.submissionHostedLink || project.submissionHostedLink,
+            submissionCodeFileName: updated.submissionCodeFileName || project.submissionCodeFileName
+          }
+        : project
+    );
+
+    if (this.selectedProject?._id === updated._id) {
+      this.selectedProject = this.projects.find((project) => project._id === updated._id) || null;
+    }
+    this.cdr.detectChanges();
   }
 
   logout(): void {
@@ -352,6 +513,15 @@ export class ClientProjectsComponent implements OnInit {
 
   refreshProjects(): void {
     this.loadProjects();
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    this.isSidebarOpen = false;
   }
 }
 

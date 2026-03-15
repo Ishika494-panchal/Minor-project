@@ -8,13 +8,15 @@ const {
   getPaymentSummary,
   createRazorpayOrder,
   verifyPayment,
-  getRazorpayKey
+  getRazorpayKey,
+  getMyCompletedJobsCount
 } = require('../controllers/paymentController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/key', getRazorpayKey);
 router.get('/', protect, getPayments);
 router.get('/summary/:userId', protect, getPaymentSummary);
+router.get('/completed-jobs/me', protect, getMyCompletedJobsCount);
 router.get('/:id', protect, getPaymentById);
 router.post('/', protect, createPayment);
 router.post('/create-order', protect, createRazorpayOrder);

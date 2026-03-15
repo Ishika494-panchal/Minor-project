@@ -97,6 +97,22 @@ const projectSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  clientApprovedForPayment: {
+    type: Boolean,
+    default: false
+  },
+  clientApprovedAt: {
+    type: Date,
+    default: null
+  },
+  resubmissionReason: {
+    type: String,
+    default: ''
+  },
+  resubmissionRequestedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

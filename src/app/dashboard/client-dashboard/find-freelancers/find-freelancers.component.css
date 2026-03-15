@@ -100,12 +100,19 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+  gap: 14px;
+}
+
+.header-title {
+  min-width: 0;
 }
 
 .header-title h1 {
   font-size: 28px;
   color: #1a5c3a;
   margin: 0 0 5px 0;
+  line-height: 1.15;
+  word-break: break-word;
 }
 
 .header-title p {
@@ -126,6 +133,7 @@
   gap: 8px;
   font-size: 14px;
   transition: all 0.3s;
+  white-space: nowrap;
 }
 
 .post-project-btn:hover {
@@ -172,16 +180,17 @@
 }
 
 .filters {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .filter-group label {
@@ -235,6 +244,25 @@
   margin-bottom: 20px;
   color: #666;
   font-size: 14px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 50px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
+.loading-state i {
+  font-size: 26px;
+  color: #1a5c3a;
+  margin-bottom: 10px;
+}
+
+.loading-state p {
+  margin: 0;
 }
 
 /* Freelancers Grid */
@@ -378,6 +406,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .hourly-rate {
@@ -399,6 +428,8 @@
 .card-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .view-profile-btn {
@@ -697,45 +728,157 @@
   .freelancers-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
+
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: 70px;
+  .page-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
   }
-  
-  .sidebar-header h2,
-  .nav-item span {
-    display: none;
+
+  .mobile-menu-btn {
+    grid-column: 1;
   }
-  
-  .main-content {
-    margin-left: 70px;
-    padding: 20px;
+
+  .header-title {
+    grid-column: 1 / -1;
+    order: 3;
   }
-  
+
+  .header-title h1 {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
+  .header-title p {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .header-actions {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .post-project-btn {
+    padding: 8px 11px;
+    font-size: 12px;
+    border-radius: 10px;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 130px;
+  }
+
+  .search-filter-section {
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+
+  .search-bar {
+    margin-bottom: 12px;
+  }
+
+  .search-bar input {
+    padding: 12px 12px 12px 40px;
+    font-size: 14px;
+  }
+
   .filters {
-    flex-direction: column;
-  }
-  
-  .filter-group {
-    width: 100%;
-  }
-  
-  .filter-group select {
-    width: 100%;
-  }
-  
-  .freelancers-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  .filter-group,
+  .filter-group select,
+  .clear-filters-btn {
+    width: 100%;
+  }
+
+  .clear-filters-btn {
+    justify-content: center;
+  }
+
+  .freelancers-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card-header,
+  .card-body {
+    padding: 14px;
+  }
+
+  .card-footer {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hourly-rate {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .card-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .view-profile-btn,
+  .hire-btn {
+    flex: 1 1 auto;
+  }
+
+  .meta-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+
   .modal-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-footer {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 10px;
+  }
+
+  .page-header {
+    gap: 8px;
+  }
+
+  .header-title h1 {
+    font-size: 22px;
+  }
+
+  .header-title p {
+    font-size: 14px;
+  }
+
+  .post-project-btn {
+    max-width: 118px;
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+
+  .freelancer-info h3 {
+    font-size: 16px;
+  }
+
+  .hourly-rate .rate {
+    font-size: 20px;
   }
 }
 

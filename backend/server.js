@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
@@ -12,6 +13,8 @@ const projectRoutes = require('./routes/projectRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const gigRoutes = require('./routes/gigRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -20,13 +23,12 @@ dotenv.config();
 connectDB();
 
 const app = express();
-// Socket.IO removed as requested - REST only
-const appServer = app;
+const server = http.createServer(app);
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
@@ -35,15 +37,71 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/gigs', gigRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Socket.IO middleware removed
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT']
+  }
+});
 
-// Socket.IO handlers removed - use REST messageController
+const activeUsers = new Map();
+app.set('io', io);
+app.set('activeUsers', activeUsers);
+
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token || '';
+    if (!token) {
+      return next(new Error('Unauthorized: token missing'));
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.id).select('_id role');
+    if (!user) {
+      return next(new Error('Unauthorized: user not found'));
+    }
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Unauthorized: token invalid'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = String(socket.user._id);
+  const userRoom = `user:${userId}`;
+  socket.join(userRoom);
+
+  const existingSet = activeUsers.get(userId) || new Set();
+  existingSet.add(socket.id);
+  activeUsers.set(userId, existingSet);
+
+  socket.emit('chat:connected', { userId, socketId: socket.id });
+
+  socket.on('chat:conversation:open', ({ conversationId }) => {
+    if (conversationId) {
+      socket.join(`conversation:${conversationId}`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const userSockets = activeUsers.get(userId);
+    if (!userSockets) return;
+    userSockets.delete(socket.id);
+    if (userSockets.size === 0) {
+      activeUsers.delete(userId);
+    } else {
+      activeUsers.set(userId, userSockets);
+    }
+  });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -56,6 +114,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`REST API server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`API + Socket server running on port ${PORT}`);
 });

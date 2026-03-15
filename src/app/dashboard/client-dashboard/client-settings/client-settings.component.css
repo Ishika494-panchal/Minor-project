@@ -159,6 +159,92 @@
   color: white;
 }
 
+.top-profile-wrapper {
+  position: relative;
+}
+
+.top-profile-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #1a5c3a;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-profile-icon {
+  font-size: 16px;
+}
+
+.top-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 300px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  z-index: 1200;
+  overflow: hidden;
+}
+
+.top-menu-header {
+  padding: 16px 18px 10px;
+}
+
+.top-menu-name {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  color: #1a5c3a;
+  line-height: 1.05;
+}
+
+.top-menu-email {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #666;
+  word-break: break-word;
+}
+
+.top-menu-section {
+  padding: 8px 0;
+}
+
+.top-menu-divider {
+  border-top: 1px solid #eee;
+}
+
+.top-menu-section a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.top-menu-section a:hover {
+  background: #f5f5f0;
+  color: #1a5c3a;
+}
+
+.top-menu-section a i {
+  width: 18px;
+  color: #666;
+}
+
+.top-menu-section .top-logout-item,
+.top-menu-section .top-logout-item i {
+  color: #d14836;
+}
+
 /* Settings Content */
 .settings-content {
   display: flex;
@@ -259,6 +345,12 @@
 
 .setting-btn.logout-btn-style {
   background: #1a5c3a;
+}
+
+.setting-item .setting-btn.logout-btn {
+  width: auto;
+  min-width: 130px;
+  padding: 8px 16px;
 }
 
 .setting-btn.delete-btn {
@@ -665,6 +757,15 @@
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
+  }
+
+  .top-dropdown-menu {
+    width: min(280px, calc(100vw - 24px));
+    right: -6px;
+  }
+
+  .top-menu-name {
+    font-size: 26px;
   }
 }
 

@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ProjectService, BackendProject, BackendProposal } from '../../../services/project.service';
 import { FreelancerFindJobsResolvedData } from '../../../resolvers/freelancer-find-jobs.resolver';
 import { finalize } from 'rxjs/operators';
+import { NotificationItem as BackendNotification, NotificationService } from '../../../services/notification.service';
 
 interface Job {
   _id: string;
@@ -29,11 +30,12 @@ interface FilterState {
 }
 
 interface NotificationItem {
-  id: number;
+  id: string;
   type: string;
   message: string;
   time: string;
   read: boolean;
+  actionUrl?: string;
 }
 
 interface ProposalForm {
@@ -53,35 +55,16 @@ interface ProposalForm {
 })
 export class FindJobsComponent implements OnInit {
   // Navbar
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   showNotifications = false;
   showProfileMenu = false;
   searchQuery = '';
   userData: any = null;
 
   // Notifications
-  notificationsList: NotificationItem[] = [
-    {
-      id: 1,
-      type: 'job',
-      message: 'New job matching your skills: React Developer',
-      time: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'message',
-      message: 'You have a new message from Tech Solutions Inc.',
-      time: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'payment',
-      message: 'Payment received: ₹15,000',
-      time: '1 day ago',
-      read: true
-    }
-  ];
+  notificationsList: NotificationItem[] = [];
+  unreadBellCount = 0;
 
   // Jobs data
   allJobs: Job[] = [];
@@ -134,10 +117,12 @@ export class FindJobsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private projectService: ProjectService
+    private projectService: ProjectService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = sessionStorage.getItem('userData') || localStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -160,8 +145,22 @@ export class FindJobsComponent implements OnInit {
       }));
       this.filteredJobs = [...this.allJobs];
       this.submitStatus = '';
+      this.loadNotifications();
+      this.loadUnreadCount();
     } else {
       this.router.navigate(['/login']);
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
 
@@ -430,10 +429,27 @@ export class FindJobsComponent implements OnInit {
   }
 
   // Navbar methods
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) {
+      return;
+    }
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
   toggleNotifications(event: Event): void {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     this.showProfileMenu = false;
+    if (this.showNotifications) {
+      this.loadNotifications();
+    }
   }
 
   toggleProfileMenu(event: Event): void {
@@ -449,6 +465,9 @@ export class FindJobsComponent implements OnInit {
       this.showNotifications = false;
       this.showProfileMenu = false;
     }
+    if (this.isMobileOrTablet && this.isSidebarOpen && !target.closest('.sidebar') && !target.closest('.hamburger-btn')) {
+      this.isSidebarOpen = false;
+    }
   }
 
   search(): void {
@@ -456,25 +475,67 @@ export class FindJobsComponent implements OnInit {
   }
 
   getNotificationIcon(type: string): string {
-    const icons: { [key: string]: string } = {
-      job: 'fas fa-briefcase',
-      payment: 'fas fa-dollar-sign',
-      message: 'fas fa-envelope',
-      project: 'fas fa-folder-open',
-      review: 'fas fa-star'
+    const icons: Record<string, string> = {
+      chat_message: 'fas fa-envelope',
+      order_created: 'fas fa-shopping-cart',
+      order_accepted: 'fas fa-check-circle',
+      delivery_submitted: 'fas fa-upload',
+      revision_requested: 'fas fa-rotate-left',
+      payment_success: 'fas fa-dollar-sign',
+      project_approved: 'fas fa-circle-check',
+      dispute_opened: 'fas fa-gavel',
+      system_alert: 'fas fa-triangle-exclamation'
     };
     return icons[type] || 'fas fa-bell';
   }
 
   get unreadCount(): number {
-    return this.notificationsList.filter(n => !n.read).length;
+    return this.unreadBellCount;
   }
 
   markAllAsRead(): void {
-    this.notificationsList.forEach(n => n.read = true);
+    this.notificationService.markAllAsRead().subscribe({
+      next: () => {
+        this.notificationsList = this.notificationsList.map((item) => ({ ...item, read: true }));
+        this.unreadBellCount = 0;
+      }
+    });
+  }
+
+  onNotificationClick(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!notification.read) {
+      this.notificationService.markAsRead(notification.id).subscribe({
+        next: () => {
+          this.notificationsList = this.notificationsList.map((item) =>
+            item.id === notification.id ? { ...item, read: true } : item
+          );
+          this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+        }
+      });
+    }
+
+    if (notification.actionUrl) {
+      this.showNotifications = false;
+      this.router.navigateByUrl(notification.actionUrl);
+    }
+  }
+
+  deleteNotification(notification: NotificationItem, event?: Event): void {
+    event?.stopPropagation();
+    this.notificationService.archiveNotification(notification.id).subscribe({
+      next: () => {
+        const wasUnread = !notification.read;
+        this.notificationsList = this.notificationsList.filter((item) => item.id !== notification.id);
+        if (wasUnread) {
+          this.unreadBellCount = Math.max(0, this.unreadBellCount - 1);
+        }
+      }
+    });
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -484,30 +545,76 @@ export class FindJobsComponent implements OnInit {
 
   goToProfile(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-profile']);
   }
 
   goToSettings(): void {
     this.showProfileMenu = false;
+    this.closeSidebar();
+    this.router.navigate(['/freelancer-settings']);
   }
 
   goToDashboard(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-dashboard']);
   }
 
   goToMessages(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-messages']);
   }
 
   goToMyGigs(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-gigs']);
   }
 
   goToProjects(): void {
+    this.closeSidebar();
     this.router.navigate(['/my-projects']);
   }
 
   goToEarnings(): void {
+    this.closeSidebar();
     this.router.navigate(['/freelancer-earnings']);
+  }
+
+  private loadNotifications(): void {
+    this.notificationService.getMyNotifications(20, 1).subscribe({
+      next: (res) => {
+        this.notificationsList = (res?.notifications || []).map((item: BackendNotification) => ({
+          id: String(item.id),
+          type: item.type,
+          message: item.message || item.title || 'New update',
+          time: this.toRelativeTime(item.createdAt),
+          read: !!item.isRead,
+          actionUrl: item.actionUrl || ''
+        }));
+        this.unreadBellCount = Number(res?.unreadCount || 0);
+      }
+    });
+  }
+
+  private loadUnreadCount(): void {
+    this.notificationService.getUnreadCount().subscribe({
+      next: (res) => {
+        this.unreadBellCount = Number(res?.unreadCount || 0);
+      }
+    });
+  }
+
+  private toRelativeTime(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? 's' : ''} ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
   }
 }
 

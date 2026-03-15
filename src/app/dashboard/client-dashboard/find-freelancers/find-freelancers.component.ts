@@ -1,11 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { getMockFreelancers } from '../../../services/mock-data.service';
+import { BackendGig, GigService } from '../../../services/gig.service';
+import { finalize } from 'rxjs/operators';
 
 export interface Freelancer {
   id: string;
+  gigId: string;
+  gigTitle: string;
+  gigStatus: 'Active' | 'Paused' | 'Draft' | 'Deleted';
+  deliveryDays: number;
   fullName: string;
   email: string;
   profilePicture: string;
@@ -35,13 +40,15 @@ export interface FilterOptions {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './find-freelancers.component.html',
-  styleUrls: ['./find-freelancers.component.css']
+  styleUrls: ['./find-freelancers.component.css', '../client-responsive-shared.css']
 })
 export class FindFreelancersComponent implements OnInit {
   userData: any = null;
+  isSidebarOpen = false;
   freelancers: Freelancer[] = [];
   filteredFreelancers: Freelancer[] = [];
   categories: string[] = [];
+  isLoadingFreelancers = false;
   
   // Filter values
   searchTerm: string = '';
@@ -76,7 +83,10 @@ export class FindFreelancersComponent implements OnInit {
   showFreelancerModal: boolean = false;
 
   constructor(
-    private router: Router
+    private router: Router,
+    private gigService: GigService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -90,14 +100,60 @@ export class FindFreelancersComponent implements OnInit {
   }
 
   loadFreelancers(): void {
-    // Load freelancers from service (which will eventually connect to backend API)
-    this.freelancers = getMockFreelancers();
-    
-    // Get unique categories
-    const uniqueCategories = this.freelancers.map(f => f.category);
-    this.categories = ['All', ...new Set(uniqueCategories)];
-    
-    this.applyFilters();
+    this.isLoadingFreelancers = true;
+    this.gigService.getDiscoverGigs()
+      .pipe(
+        finalize(() => {
+          this.ngZone.run(() => {
+            this.isLoadingFreelancers = false;
+            this.cdr.detectChanges();
+          });
+        })
+      )
+      .subscribe({
+        next: (gigs) => {
+          this.ngZone.run(() => {
+            this.freelancers = gigs.map((gig) => this.mapGigToFreelancer(gig));
+            const uniqueCategories = this.freelancers.map((f) => f.category).filter(Boolean);
+            this.categories = ['All', ...new Set(uniqueCategories)];
+            this.applyFilters();
+            this.cdr.detectChanges();
+          });
+        },
+        error: (error) => {
+          console.error('Error loading discover gigs:', error);
+          this.ngZone.run(() => {
+            this.freelancers = [];
+            this.filteredFreelancers = [];
+            this.categories = ['All'];
+            this.cdr.detectChanges();
+          });
+        }
+      });
+  }
+
+  private mapGigToFreelancer(gig: BackendGig): Freelancer {
+    return {
+      id: gig.freelancerId || gig._id,
+      gigId: gig._id,
+      gigTitle: gig.title || 'Untitled Gig',
+      gigStatus: gig.status || 'Active',
+      deliveryDays: Number(gig.deliveryDays) || 0,
+      fullName: gig.freelancerName || 'Freelancer',
+      email: '',
+      profilePicture: gig.images?.[0] || 'assets/client.jpeg',
+      skills: gig.tags || [],
+      category: gig.category || 'General',
+      bio: gig.description || 'No description provided.',
+      rating: 4.5,
+      reviewCount: 0,
+      hourlyRate: Number(gig.price) || 0,
+      location: 'Remote',
+      completedProjects: 0,
+      memberSince: gig.createdAt ? new Date(gig.createdAt).toLocaleDateString() : 'N/A',
+      languages: ['English'],
+      portfolio: gig.portfolioLink ? [gig.portfolioLink] : []
+    };
   }
 
   applyFilters(): void {
@@ -107,9 +163,10 @@ export class FindFreelancersComponent implements OnInit {
       if (this.searchTerm) {
         const searchLower = this.searchTerm.toLowerCase();
         const matchesName = freelancer.fullName.toLowerCase().includes(searchLower);
+        const matchesGigTitle = freelancer.gigTitle.toLowerCase().includes(searchLower);
         const matchesSkills = freelancer.skills.some(s => s.toLowerCase().includes(searchLower));
         const matchesCategory = freelancer.category.toLowerCase().includes(searchLower);
-        if (!matchesName && !matchesSkills && !matchesCategory) {
+        if (!matchesName && !matchesGigTitle && !matchesSkills && !matchesCategory) {
           return false;
         }
       }
@@ -135,7 +192,7 @@ export class FindFreelancersComponent implements OnInit {
         }
       }
       
-      if (this.maxPrice > 0 && this.maxPrice < 200) {
+      if (this.selectedPriceRange.label !== 'Any Price' && this.maxPrice > 0) {
         if (freelancer.hourlyRate > this.maxPrice) {
           return false;
         }
@@ -188,6 +245,20 @@ export class FindFreelancersComponent implements OnInit {
     this.closeModal();
   }
 
+  viewPortfolio(freelancer: Freelancer | null): void {
+    if (!freelancer) {
+      return;
+    }
+
+    const portfolioUrl = freelancer.portfolio?.[0];
+    if (!portfolioUrl) {
+      alert('Portfolio link is not available for this gig yet.');
+      return;
+    }
+
+    window.open(portfolioUrl, '_blank', 'noopener,noreferrer');
+  }
+
   messageFreelancer(freelancer: Freelancer | null): void {
     if (!freelancer) {
       return;
@@ -217,6 +288,15 @@ export class FindFreelancersComponent implements OnInit {
       stars.push('far fa-star');
     }
     return stars;
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    this.isSidebarOpen = false;
   }
 
   logout(): void {

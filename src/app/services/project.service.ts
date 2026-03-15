@@ -24,6 +24,10 @@ export interface BackendProject {
   submissionCodeFileName?: string;
   submissionCodeFilePath?: string;
   submissionHostedLink?: string;
+  clientApprovedForPayment?: boolean;
+  clientApprovedAt?: string | null;
+  resubmissionReason?: string;
+  resubmissionRequestedAt?: string | null;
 }
 
 export interface BackendProposal {
@@ -44,6 +48,24 @@ export interface BackendProposal {
   createdAt: string;
 }
 
+export interface BackendFreelancerProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  bio: string;
+  skills: string[];
+  hourlyRate: number;
+  earnings: number;
+  memberSince: string;
+  profileImage: string;
+  rating: number;
+  portfolioLink: string;
+  deliveryTime: number;
+  proposedBudget: number;
+  acceptedProposals: number;
+  totalProposals: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   project?: T;
@@ -51,6 +73,7 @@ export interface ApiResponse<T> {
   projects?: T[];
   proposals?: BackendProposal[];
   message?: string;
+  freelancerProfile?: BackendFreelancerProfile;
   user?: {
     id: string;
     fullName: string;
@@ -70,6 +93,11 @@ export interface CreateProjectInput {
   projectType: string;
   attachments: string[];
   allowProposals: boolean;
+}
+
+export interface ReviewSubmissionPayload {
+  action: 'approve' | 'resubmit';
+  reason?: string;
 }
 
 @Injectable({
@@ -151,6 +179,15 @@ export class ProjectService {
     );
   }
 
+  getFreelancerProfile(freelancerId: string): Observable<BackendFreelancerProfile> {
+    return this.http
+      .get<ApiResponse<unknown>>(`${this.proposalsUrl}/freelancer-profile/${freelancerId}`, { headers: this.getAuthHeaders() })
+      .pipe(
+        map((response) => response.freelancerProfile as BackendFreelancerProfile),
+        catchError(this.handleError)
+      );
+  }
+
   createProposal(proposalData: {
     projectId: string;
     projectTitle: string;
@@ -198,6 +235,16 @@ export class ProjectService {
     const headers = token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
 
     return this.http.post<ApiResponse<BackendProject>>(`${this.apiUrl}/${projectId}/submission`, formData, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  reviewSubmittedProject(projectId: string, payload: ReviewSubmissionPayload): Observable<ApiResponse<BackendProject>> {
+    return this.http.put<ApiResponse<BackendProject>>(
+      `${this.apiUrl}/${projectId}/review-submission`,
+      payload,
+      { headers: this.getAuthHeaders() }
+    ).pipe(
       catchError(this.handleError)
     );
   }
