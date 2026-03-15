@@ -12,7 +12,20 @@
 </nav>
 
 <section class="hero" id="hero">
-  <video class="bg-video" autoplay muted loop playsinline>
+  <video
+    #heroVideo
+    class="bg-video"
+    autoplay
+    muted
+    loop
+    playsinline
+    preload="auto"
+    (loadeddata)="onHeroVideoReady()"
+    (canplay)="onHeroVideoReady()"
+    (stalled)="onHeroVideoStalled()"
+    (waiting)="onHeroVideoStalled()"
+    (error)="onHeroVideoError()"
+  >
     <source src="assets/Freelance_Website_Video_Creation.mp4" type="video/mp4">
     Your browser does not support the video tag.
   </video>
