@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, timeout } from 'rxjs/operators';
+import { API_BASE_URL } from './api.config';
 
 export interface BackendGig {
   _id: string;
@@ -43,7 +44,7 @@ export interface SaveGigPayload {
   providedIn: 'root'
 })
 export class GigService {
-  private gigsApiUrl = 'http://localhost:3000/api/gigs';
+  private gigsApiUrl = `${API_BASE_URL}/api/gigs`;
 
   constructor(private http: HttpClient) {}
 

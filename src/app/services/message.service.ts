@@ -4,6 +4,7 @@ import { Observable, BehaviorSubject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { tap } from 'rxjs/operators';
 import { NotificationItem } from './notification.service';
+import { API_BASE_URL, SOCKET_BASE_URL } from './api.config';
 
 export interface ChatMessage {
   _id: string;
@@ -85,7 +86,7 @@ export interface SendMessagePayload {
   providedIn: 'root'
 })
 export class MessageService {
-  private baseUrl = 'http://localhost:3000/api';
+  private baseUrl = `${API_BASE_URL}/api`;
   private socket: Socket | null = null;
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private conversationsSubject = new BehaviorSubject<ChatConversation[]>([]);
@@ -108,7 +109,7 @@ export class MessageService {
     if (this.socket?.connected) {
       return;
     }
-    this.socket = io('http://localhost:3000', {
+    this.socket = io(SOCKET_BASE_URL, {
       auth: { token }
     });
 

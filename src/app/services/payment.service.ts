@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import type { Payment, PaymentSummary } from '../models/payment.model';
+import { API_BASE_URL } from './api.config';
 
 export interface RazorpayOrder {
   id: string;
@@ -28,7 +29,7 @@ export interface PaymentResponse {
   providedIn: 'root'
 })
 export class PaymentService {
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = `${API_BASE_URL}/api`;
 
   constructor(private http: HttpClient) {}
 

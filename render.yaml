@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: skillzyyy-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+staticSites:
+  - name: skillzyyy-frontend
+    rootDir: .
+    buildCommand: npm install && npm run build
+    publishPath: dist/skillzyy-app
+    pullRequestPreviewsEnabled: false

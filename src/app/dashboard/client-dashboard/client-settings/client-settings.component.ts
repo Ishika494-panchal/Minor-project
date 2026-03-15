@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { NotificationItem as BackendNotification, NotificationService } from '../../../services/notification.service';
+import { API_BASE_URL } from '../../../services/api.config';
 
 export interface ClientSettings {
   email: string;
@@ -326,7 +327,7 @@ export class ClientSettingsComponent implements OnInit {
 
     this.isChangingPassword = true;
     this.http.put<{ success: boolean; message?: string }>(
-      'http://localhost:3000/api/auth/change-password',
+      `${API_BASE_URL}/api/auth/change-password`,
       {
         currentPassword: this.currentPassword,
         newPassword: this.newPassword

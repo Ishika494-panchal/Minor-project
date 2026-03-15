@@ -5,6 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const connectDB = require('./config/db');
@@ -24,9 +25,17 @@ connectDB();
 
 const app = express();
 const server = http.createServer(app);
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: corsOrigins.length ? corsOrigins : true
+  })
+);
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -45,9 +54,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// Serve Angular build on the same service in production.
+const frontendDistPath = path.join(__dirname, '..', 'dist', 'skillzyy-app');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    return res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: corsOrigins.length ? corsOrigins : '*',
     methods: ['GET', 'POST', 'PUT']
   }
 });

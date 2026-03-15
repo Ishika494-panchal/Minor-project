@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { API_BASE_URL } from './api.config';
 
 export interface BackendProject {
   _id: string;
@@ -104,8 +105,8 @@ export interface ReviewSubmissionPayload {
   providedIn: 'root'
 })
 export class ProjectService {
-  private apiUrl = 'http://localhost:3000/api/projects';
-  private proposalsUrl = 'http://localhost:3000/api/proposals';
+  private apiUrl = `${API_BASE_URL}/api/projects`;
+  private proposalsUrl = `${API_BASE_URL}/api/proposals`;
 
   constructor(private http: HttpClient) {}
 
@@ -139,7 +140,7 @@ export class ProjectService {
   }
 
   getCurrentUser(): Observable<ApiResponse<unknown>> {
-    return this.http.get<ApiResponse<unknown>>('http://localhost:3000/api/auth/me', { headers: this.getAuthHeaders() }).pipe(
+    return this.http.get<ApiResponse<unknown>>(`${API_BASE_URL}/api/auth/me`, { headers: this.getAuthHeaders() }).pipe(
       catchError(this.handleError)
     );
   }

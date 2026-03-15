@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { API_BASE_URL } from './api.config';
 
 export interface NotificationActor {
   id: string;
@@ -39,7 +40,7 @@ export interface NotificationItem {
   providedIn: 'root'
 })
 export class NotificationService {
-  private readonly baseUrl = 'http://localhost:3000/api/notifications';
+  private readonly baseUrl = `${API_BASE_URL}/api/notifications`;
 
   constructor(private http: HttpClient) {}
 

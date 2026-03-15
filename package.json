@@ -2,8 +2,12 @@
   "name": "minor-project",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "backend/server.js",
   "scripts": {
+    "start": "node backend/server.js",
+    "start:backend": "npm --prefix backend start",
+    "build": "ng build --configuration production",
+    "build:frontend": "ng build --configuration production",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

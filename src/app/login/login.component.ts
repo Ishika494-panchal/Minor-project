@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { User } from '../models/user.model';
+import { API_BASE_URL } from '../services/api.config';
 
 interface AuthResponse {
   success: boolean;
@@ -54,7 +55,7 @@ export class LoginComponent implements OnInit {
 
     const { email, password, rememberMe } = this.loginForm.value;
 
-    this.http.post<AuthResponse>('http://localhost:3000/api/auth/login', { email, password }).subscribe({
+    this.http.post<AuthResponse>(`${API_BASE_URL}/api/auth/login`, { email, password }).subscribe({
       next: (response) => {
         if (response.success && response.user && response.token) {
           this.handleLoginSuccess(response.user.role, rememberMe, response.token, response.user);

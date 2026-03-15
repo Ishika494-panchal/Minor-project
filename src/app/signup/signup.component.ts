@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { HttpClient } from '@angular/common/http';
 import { Router, ActivatedRoute } from '@angular/router';
 import { User } from '../models/user.model';
+import { API_BASE_URL } from '../services/api.config';
 
 interface AuthResponse {
   success: boolean;
@@ -96,7 +97,7 @@ export class SignupComponent implements OnInit {
     const password: string = formValue.password;
     const role: string = formValue.role || 'client';
 
-    this.http.post<AuthResponse>('http://localhost:3000/api/auth/register', { fullName, email, password, role }).subscribe({
+    this.http.post<AuthResponse>(`${API_BASE_URL}/api/auth/register`, { fullName, email, password, role }).subscribe({
       next: (response) => {
         if (!response.success || !response.user || !response.token) {
           this.isLoading = false;
