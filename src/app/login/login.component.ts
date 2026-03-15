@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -29,7 +29,9 @@ export class LoginComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private router: Router,
-    private http: HttpClient
+    private http: HttpClient,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -45,8 +47,13 @@ export class LoginComponent implements OnInit {
   }
 
   onSubmit(): void {
+    if (this.isLoading) {
+      return;
+    }
+
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
+      this.cdr.detectChanges();
       return;
     }
 
@@ -57,16 +64,23 @@ export class LoginComponent implements OnInit {
 
     this.http.post<AuthResponse>(`${API_BASE_URL}/api/auth/login`, { email, password }).subscribe({
       next: (response) => {
-        if (response.success && response.user && response.token) {
-          this.handleLoginSuccess(response.user.role, rememberMe, response.token, response.user);
-          return;
-        }
-        this.isLoading = false;
-        this.errorMessage = response.message || 'Login failed';
+        this.ngZone.run(() => {
+          if (response.success && response.user && response.token) {
+            this.handleLoginSuccess(response.user.role, rememberMe, response.token, response.user);
+            this.cdr.detectChanges();
+            return;
+          }
+          this.isLoading = false;
+          this.errorMessage = response.message || 'Login failed';
+          this.cdr.detectChanges();
+        });
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error?.error?.message || 'Login failed';
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          this.errorMessage = error?.error?.message || 'Login failed';
+          this.cdr.detectChanges();
+        });
       }
     });
   }

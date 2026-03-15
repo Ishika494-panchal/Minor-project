@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -38,7 +38,9 @@ export class SignupComponent implements OnInit {
     private fb: FormBuilder,
     private router: Router,
     private route: ActivatedRoute,
-    private http: HttpClient
+    private http: HttpClient,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -66,10 +68,23 @@ export class SignupComponent implements OnInit {
     const password = form.get('password');
     const confirmPassword = form.get('confirmPassword');
 
-    if (password && confirmPassword && password.value !== confirmPassword.value) {
-      confirmPassword.setErrors({ passwordMismatch: true });
+    if (!password || !confirmPassword) {
+      return null;
+    }
+
+    if (password.value !== confirmPassword.value) {
+      const existingErrors = confirmPassword.errors || {};
+      confirmPassword.setErrors({ ...existingErrors, passwordMismatch: true });
       return { passwordMismatch: true };
     }
+
+    // Clear only the passwordMismatch error without touching other validation errors.
+    const currentErrors = { ...(confirmPassword.errors || {}) };
+    if (currentErrors['passwordMismatch']) {
+      delete currentErrors['passwordMismatch'];
+      confirmPassword.setErrors(Object.keys(currentErrors).length ? currentErrors : null);
+    }
+
     return null;
   }
 
@@ -82,8 +97,13 @@ export class SignupComponent implements OnInit {
   }
 
   onSubmit(): void {
+    if (this.isLoading) {
+      return;
+    }
+
     if (this.signupForm.invalid) {
       this.signupForm.markAllAsTouched();
+      this.cdr.detectChanges();
       return;
     }
 
@@ -99,37 +119,46 @@ export class SignupComponent implements OnInit {
 
     this.http.post<AuthResponse>(`${API_BASE_URL}/api/auth/register`, { fullName, email, password, role }).subscribe({
       next: (response) => {
-        if (!response.success || !response.user || !response.token) {
-          this.isLoading = false;
-          this.errorMessage = response.message || 'Registration failed';
-          return;
-        }
-
-        this.isLoading = false;
-        this.successMessage = 'Account created successfully! Redirecting to your dashboard...';
-
-        // Auto login after registration - store token and redirect
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('userData');
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('userData', JSON.stringify(response.user));
-
-        // Redirect to role-specific dashboard after 2 seconds
-        setTimeout(() => {
-          if (role === 'client') {
-            this.router.navigate(['/client-dashboard']);
-          } else if (role === 'freelancer') {
-            this.router.navigate(['/freelancer-dashboard']);
-          } else {
-            this.router.navigate(['/login']);
+        this.ngZone.run(() => {
+          if (!response.success || !response.user || !response.token) {
+            this.isLoading = false;
+            this.errorMessage = response.message || 'Registration failed';
+            this.cdr.detectChanges();
+            return;
           }
-        }, 2000);
+
+          this.isLoading = false;
+          this.successMessage = 'Account created successfully! Redirecting to your dashboard...';
+
+          // Auto login after registration - store token and redirect
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+          sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('userData');
+          localStorage.setItem('authToken', response.token);
+          localStorage.setItem('userData', JSON.stringify(response.user));
+          this.cdr.detectChanges();
+
+          // Redirect to role-specific dashboard after 2 seconds
+          setTimeout(() => {
+            this.ngZone.run(() => {
+              if (role === 'client') {
+                this.router.navigate(['/client-dashboard']);
+              } else if (role === 'freelancer') {
+                this.router.navigate(['/freelancer-dashboard']);
+              } else {
+                this.router.navigate(['/login']);
+              }
+            });
+          }, 2000);
+        });
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error?.error?.message || 'Registration failed';
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          this.errorMessage = error?.error?.message || 'Registration failed';
+          this.cdr.detectChanges();
+        });
       }
     });
   }
