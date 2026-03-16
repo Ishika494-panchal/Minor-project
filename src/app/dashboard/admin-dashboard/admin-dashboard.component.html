@@ -1,49 +1,46 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy Admin</h2>
     </div>
     <nav class="sidebar-nav">
-      <a routerLink="/admin-dashboard" class="nav-item">
+      <a routerLink="/admin-dashboard" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-home"></i> Dashboard
       </a>
-      <a routerLink="/manage-users" class="nav-item">
+      <a routerLink="/manage-users" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-users"></i> Users
       </a>
-      <a routerLink="/admin-projects" class="nav-item">
-        <i class="fas fa-project-diagram"></i> Projects
+      <a routerLink="/admin-projects" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-project-diagram"></i> Services & Orders
       </a>
-      <a routerLink="/admin-revenue" class="nav-item">
-        <i class="fas fa-dollar-sign"></i> Revenue
+      <a routerLink="/admin-revenue" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-dollar-sign"></i> Payments
       </a>
-      <a routerLink="/admin-messages" class="nav-item">
-        <i class="fas fa-envelope"></i> Messages
-      </a>
-      <a routerLink="/admin-security" class="nav-item">
-        <i class="fas fa-shield-alt"></i> Security
-      </a>
-      <a routerLink="/admin-settings" class="nav-item">
+      <a routerLink="/admin-settings" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-cog"></i> Settings
       </a>
     </nav>
     <div class="sidebar-footer">
-      <button class="logout-btn" (click)="logout()">
+      <button type="button" class="logout-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <div class="navbar-left">
+        <button type="button" class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle admin sidebar">
+          <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+        </button>
+      </div>
       <h1>Admin Dashboard</h1>
       <div class="header-actions">
-        <button class="notification-btn" (click)="goToNotifications()">
-          <i class="fas fa-bell"></i>
-        </button>
         <div class="user-avatar" (click)="goToSettings()">
           <i class="fas fa-user-shield"></i>
         </div>
@@ -63,20 +60,47 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon projects">
-          <i class="fas fa-project-diagram"></i>
+          <i class="fas fa-user-tie"></i>
         </div>
         <div class="stat-info">
-          <span class="stat-value">{{ stats.activeProjects }}</span>
-          <span class="stat-label">Active Projects</span>
+          <span class="stat-value">{{ stats.totalFreelancers }}</span>
+          <span class="stat-label">Total Freelancers</span>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon revenue">
-          <i class="fas fa-dollar-sign"></i>
+          <i class="fas fa-building-user"></i>
         </div>
         <div class="stat-info">
-          <span class="stat-value">₹{{ stats.totalRevenue }}</span>
-          <span class="stat-label">Total Revenue</span>
+          <span class="stat-value">{{ stats.totalClients }}</span>
+          <span class="stat-label">Total Clients</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon projects">
+          <i class="fas fa-briefcase"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.totalServices }}</span>
+          <span class="stat-label">Total Services Listed</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon revenue">
+          <i class="fas fa-receipt"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.totalOrders }}</span>
+          <span class="stat-label">Total Orders</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon users">
+          <i class="fas fa-money-check-dollar"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.totalPayments }}</span>
+          <span class="stat-label">Total Payments</span>
         </div>
       </div>
     </section>
@@ -85,7 +109,7 @@
     <section class="recent-activity">
       <div class="section-header">
         <h2>Recent Activity</h2>
-        <button class="view-all-btn">View All</button>
+        <button type="button" class="view-all-btn">View All</button>
       </div>
       <div class="activity-list">
         <div class="activity-item" *ngFor="let activity of recentActivities">
@@ -93,10 +117,10 @@
             <i class="fas fa-bell"></i>
           </div>
           <div class="activity-info">
-            <span class="activity-action">{{ activity.action }}</span>
-            <span class="activity-user">{{ activity.user }}</span>
+            <span class="activity-action">{{ activity.message || activity.actionType }}</span>
+            <span class="activity-user">{{ activity.targetType || 'system' }}</span>
           </div>
-          <span class="activity-time">{{ activity.time }}</span>
+          <span class="activity-time">{{ activity.createdAt | date:'short' }}</span>
         </div>
       </div>
     </section>

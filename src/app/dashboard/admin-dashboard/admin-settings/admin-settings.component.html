@@ -1,50 +1,46 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy Admin</h2>
     </div>
     <nav class="sidebar-nav">
-      <a routerLink="/admin-dashboard" class="nav-item">
+      <a routerLink="/admin-dashboard" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-home"></i> Dashboard
       </a>
-      <a routerLink="/manage-users" class="nav-item">
+      <a routerLink="/manage-users" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-users"></i> Users
       </a>
-      <a routerLink="/admin-projects" class="nav-item">
-        <i class="fas fa-project-diagram"></i> Projects
+      <a routerLink="/admin-projects" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-project-diagram"></i> Services &amp; Orders
       </a>
-      <a routerLink="/admin-revenue" class="nav-item">
-        <i class="fas fa-dollar-sign"></i> Revenue
+      <a routerLink="/admin-revenue" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-dollar-sign"></i> Payments
       </a>
-      <a routerLink="/admin-messages" class="nav-item">
-        <i class="fas fa-envelope"></i> Messages
-      </a>
-      <a routerLink="/admin-security" class="nav-item">
-        <i class="fas fa-shield-alt"></i> Security
-      </a>
-      <a routerLink="/admin-settings" class="nav-item active">
+      <a routerLink="/admin-settings" class="nav-item active" (click)="closeSidebar()">
         <i class="fas fa-cog"></i> Settings
       </a>
     </nav>
     <div class="sidebar-footer">
-      <button class="logout-btn" (click)="logout()">
+      <button type="button" class="logout-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <div class="navbar-left">
+        <button type="button" class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle admin sidebar">
+          <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+        </button>
+      </div>
       <h1>Settings</h1>
       <div class="header-actions">
-        <button class="notification-btn">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge">3</span>
-        </button>
         <div class="user-avatar">
           <i class="fas fa-user-shield"></i>
         </div>

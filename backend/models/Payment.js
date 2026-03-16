@@ -40,7 +40,7 @@ const paymentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Completed', 'Failed', 'Refunded'],
+    enum: ['Pending', 'Reviewing', 'Completed', 'Failed', 'Refunded'],
     default: 'Pending'
   },
   // Razorpay specific fields

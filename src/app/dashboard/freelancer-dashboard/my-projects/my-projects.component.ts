@@ -58,6 +58,7 @@ export class MyProjectsComponent implements OnInit {
   savingLink = false;
   submittingProjectId: string | null = null;
   private paidProjectIds = new Set<string>();
+  private paymentStatusByProjectId = new Map<string, 'reviewing' | 'completed'>();
   
   // Notifications
   notificationsList: NotificationItem[] = [];
@@ -160,10 +161,24 @@ export class MyProjectsComponent implements OnInit {
       next: (response) => {
         this.ngZone.run(() => {
           const payments = response?.payments || [];
+          const statusMap = new Map<string, 'reviewing' | 'completed'>();
+
+          for (const payment of payments) {
+            const rawProjectId: any = payment?.projectId;
+            const projectId = String(rawProjectId?._id || rawProjectId || '').trim();
+            if (!projectId) continue;
+            const status = String(payment?.status || '').toLowerCase();
+            if (status !== 'completed' && status !== 'reviewing') continue;
+
+            // Completed has higher priority than reviewing for final UI messaging.
+            const existing = statusMap.get(projectId);
+            if (existing === 'completed') continue;
+            statusMap.set(projectId, status as 'reviewing' | 'completed');
+          }
+
+          this.paymentStatusByProjectId = statusMap;
           this.paidProjectIds = new Set(
-            payments
-              .filter((payment: any) => String(payment?.status) === 'Completed')
-              .map((payment: any) => String(payment?.projectId?._id || payment?.projectId || ''))
+            Array.from(statusMap.keys())
               .filter((id: string) => !!id)
           );
           this.cdr.detectChanges();
@@ -531,6 +546,17 @@ export class MyProjectsComponent implements OnInit {
 
   isPaymentUnderReview(project: Project): boolean {
     return this.paidProjectIds.has(project._id);
+  }
+
+  getPaymentStatusNote(project: Project): string {
+    const status = this.paymentStatusByProjectId.get(project._id);
+    if (status === 'completed') {
+      return 'Payment is done through net banking and has been credited successfully.';
+    }
+    if (status === 'reviewing') {
+      return 'Payment is being reviewed by Skillzyy. You will receive it in 2-3 working days.';
+    }
+    return '';
   }
 
   messageClient(project: Project, event?: Event): void {

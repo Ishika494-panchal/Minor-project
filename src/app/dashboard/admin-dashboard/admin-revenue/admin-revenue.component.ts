@@ -1,14 +1,28 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { 
-  Transaction, 
-  RevenueSummary, 
-  getMockTransactions, 
-  getRevenueSummary,
-  getMonthlyRevenue 
-} from '../../../services/mock-data.service';
+import { AdminService } from '../../../services/admin.service';
+
+interface Transaction {
+  id: string;
+  clientName: string;
+  freelancerName: string;
+  projectTitle: string;
+  amount: number;
+  commission: number;
+  paymentMethod: string;
+  status: 'Pending' | 'Reviewing' | 'Completed' | 'Refunded' | 'Failed';
+  date: string;
+}
+
+interface RevenueSummary {
+  totalRevenue: number;
+  revenueThisMonth: number;
+  revenueThisWeek: number;
+  platformCommission: number;
+  pendingPayments: number;
+}
 
 @Component({
   selector: 'app-admin-revenue',
@@ -45,12 +59,21 @@ export class AdminRevenueComponent implements OnInit {
   dateTo: string = '';
 
   // Filter options
-  statusOptions: string[] = ['All', 'Completed', 'Pending', 'Refunded'];
+  statusOptions: string[] = ['All', 'Completed', 'Pending', 'Reviewing', 'Refunded', 'Failed'];
   methodOptions: string[] = ['All', 'Credit Card', 'Debit Card', 'UPI', 'Bank Transfer', 'PayPal'];
+  activeActionPaymentIds = new Set<string>();
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private adminService: AdminService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -64,21 +87,53 @@ export class AdminRevenueComponent implements OnInit {
     }
   }
 
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) return;
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
   loadData(): void {
-    // Load revenue summary
-    this.revenueSummary = getRevenueSummary();
+    this.adminService.getPayments().subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const payments = Array.isArray(response?.payments) ? response.payments : [];
+          this.transactions = payments.map((payment: any) => ({
+            id: String(payment.id),
+            clientName: payment.clientName || 'Client',
+            freelancerName: payment.freelancerName || 'Freelancer',
+            projectTitle: payment.projectTitle || '',
+            amount: Number(payment.amount || 0),
+            commission: Number(payment.platformFee || 0),
+            paymentMethod: payment.paymentMethod || 'Razorpay',
+            status: (payment.status || 'Pending') as Transaction['status'],
+            date: payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : ''
+          }));
 
-    // Load monthly revenue for chart
-    this.monthlyRevenue = getMonthlyRevenue();
-
-    // Load transactions
-    this.transactions = getMockTransactions();
-    this.filteredTransactions = [...this.transactions];
-
-    // Get recent transactions (latest 5)
-    this.recentTransactions = this.transactions
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+          this.refreshDerivedData();
+          this.cdr.detectChanges();
+        });
+      },
+      error: (error) => console.error('Failed to load payments', error)
+    });
   }
 
   applyFilters(): void {
@@ -163,7 +218,9 @@ export class AdminRevenueComponent implements OnInit {
     switch (status) {
       case 'Completed': return 'completed';
       case 'Pending': return 'pending';
+      case 'Reviewing': return 'pending';
       case 'Refunded': return 'refunded';
+      case 'Failed': return 'refunded';
       default: return '';
     }
   }
@@ -188,11 +245,145 @@ export class AdminRevenueComponent implements OnInit {
   }
 
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('userData');
     this.router.navigate(['/login']);
+  }
+
+  markReviewing(transaction: Transaction): void {
+    if (this.activeActionPaymentIds.has(transaction.id)) {
+      return;
+    }
+
+    this.activeActionPaymentIds.add(transaction.id);
+    const previousStatus = transaction.status;
+    // Immediate first-click UI feedback.
+    this.transactions = this.transactions.map((item) =>
+      item.id === transaction.id ? { ...item, status: 'Reviewing' } : item
+    );
+    this.refreshDerivedData();
+    this.cdr.detectChanges();
+
+    this.adminService.reviewPayment(transaction.id, 'reviewing').subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.activeActionPaymentIds.delete(transaction.id);
+          this.cdr.detectChanges();
+          this.loadData();
+        });
+      },
+      error: (error) => {
+        this.ngZone.run(() => {
+          this.transactions = this.transactions.map((item) =>
+            item.id === transaction.id ? { ...item, status: previousStatus } : item
+          );
+          this.refreshDerivedData();
+          this.activeActionPaymentIds.delete(transaction.id);
+          this.cdr.detectChanges();
+        });
+        alert(error?.error?.message || 'Failed to mark payment as reviewing');
+      }
+    });
+  }
+
+  approvePayment(transaction: Transaction): void {
+    if (this.activeActionPaymentIds.has(transaction.id)) {
+      return;
+    }
+
+    this.activeActionPaymentIds.add(transaction.id);
+    const previousStatus = transaction.status;
+    // Immediate first-click UI feedback.
+    this.transactions = this.transactions.map((item) =>
+      item.id === transaction.id ? { ...item, status: 'Completed' } : item
+    );
+    this.refreshDerivedData();
+    this.cdr.detectChanges();
+
+    this.adminService.reviewPayment(transaction.id, 'approve').subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.activeActionPaymentIds.delete(transaction.id);
+          this.cdr.detectChanges();
+          this.loadData();
+        });
+      },
+      error: (error) => {
+        this.ngZone.run(() => {
+          this.transactions = this.transactions.map((item) =>
+            item.id === transaction.id ? { ...item, status: previousStatus } : item
+          );
+          this.refreshDerivedData();
+          this.activeActionPaymentIds.delete(transaction.id);
+          this.cdr.detectChanges();
+        });
+        alert(error?.error?.message || 'Failed to approve payment');
+      }
+    });
+  }
+
+  isActionInProgress(transactionId: string): boolean {
+    return this.activeActionPaymentIds.has(transactionId);
+  }
+
+  private refreshDerivedData(): void {
+    this.applyFilters();
+    this.recentTransactions = [...this.transactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+    this.revenueSummary = this.buildRevenueSummary(this.transactions);
+    this.monthlyRevenue = this.buildMonthlyRevenue(this.transactions);
+  }
+
+  private buildRevenueSummary(transactions: Transaction[]): RevenueSummary {
+    const completed = transactions.filter((item) => item.status === 'Completed');
+    const pending = transactions.filter((item) => item.status === 'Pending' || item.status === 'Reviewing');
+    const totalRevenue = completed.reduce((sum, item) => sum + item.amount, 0);
+    const platformCommission = completed.reduce((sum, item) => sum + item.commission, 0);
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const revenueThisMonth = completed
+      .filter((item) => new Date(item.date) >= startOfMonth)
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const revenueThisWeek = completed
+      .filter((item) => new Date(item.date) >= startOfWeek)
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    return {
+      totalRevenue,
+      revenueThisMonth,
+      revenueThisWeek,
+      platformCommission,
+      pendingPayments: pending.reduce((sum, item) => sum + item.amount, 0)
+    };
+  }
+
+  private buildMonthlyRevenue(transactions: Transaction[]): { month: string; amount: number }[] {
+    const monthly: Record<string, number> = {};
+    transactions
+      .filter((item) => item.status === 'Completed')
+      .forEach((item) => {
+        const date = new Date(item.date);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthly[key] = (monthly[key] || 0) + item.amount;
+      });
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return Object.keys(monthly)
+      .sort()
+      .map((key) => {
+        const [year, month] = key.split('-');
+        return { month: `${monthNames[Number(month) - 1]} ${year.slice(-2)}`, amount: monthly[key] };
+      });
   }
 }
 

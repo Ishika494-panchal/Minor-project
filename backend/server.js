@@ -16,6 +16,7 @@ const messageRoutes = require('./routes/messageRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const gigRoutes = require('./routes/gigRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/gigs', gigRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -135,6 +137,27 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+const ensureDefaultAdminAccount = async () => {
+  try {
+    const adminEmail = 'admin@gmail.com';
+    const existingAdmin = await User.findOne({ email: adminEmail }).select('_id');
+    if (existingAdmin) return;
+
+    await User.create({
+      fullName: 'Platform Admin',
+      email: adminEmail,
+      password: 'admin@123',
+      role: 'admin',
+      accountStatus: 'Active'
+    });
+
+    console.log('Default admin account created: admin@gmail.com');
+  } catch (error) {
+    console.error('Failed to ensure default admin account:', error.message);
+  }
+};
+
 server.listen(PORT, () => {
   console.log(`API + Socket server running on port ${PORT}`);
+  ensureDefaultAdminAccount();
 });

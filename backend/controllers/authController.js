@@ -69,6 +69,13 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (String(user.accountStatus || 'Active') === 'Blocked') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is blocked. Contact support.'
+      });
+    }
+
     // Check if password matches
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {

@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { getAdminStats, getAdminRecentActivities } from '../../services/mock-data.service';
+import { AdminService } from '../../services/admin.service';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -14,17 +14,26 @@ export class AdminDashboardComponent implements OnInit {
   userData: any = null;
   stats = {
     totalUsers: 0,
-    activeProjects: 0,
-    totalRevenue: 0
+    totalFreelancers: 0,
+    totalClients: 0,
+    totalServices: 0,
+    totalOrders: 0,
+    totalPayments: 0
   };
   recentActivities: any[] = [];
   isLoading = false;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
 
   constructor(
-    private router: Router
+    private router: Router,
+    private adminService: AdminService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -47,27 +56,62 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  loadAdminData(): void {
-    this.isLoading = true;
-    try {
-      // Load stats
-      const adminStats = getAdminStats();
-      this.stats = {
-        totalUsers: adminStats.totalUsers || 0,
-        activeProjects: adminStats.activeProjects || 0,
-        totalRevenue: adminStats.totalRevenue || 0
-      };
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
 
-      // Load recent activities
-      this.recentActivities = getAdminRecentActivities();
-    } catch (error) {
-      console.error('Error loading admin data:', error);
-    } finally {
-      this.isLoading = false;
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
 
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) return;
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
+  loadAdminData(): void {
+    this.isLoading = true;
+    this.cdr.detectChanges();
+    this.adminService.getOverview().subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const overview = response?.overview || {};
+          this.stats = {
+            totalUsers: Number(overview.totalUsers || 0),
+            totalFreelancers: Number(overview.totalFreelancers || 0),
+            totalClients: Number(overview.totalClients || 0),
+            totalServices: Number(overview.totalServices || 0),
+            totalOrders: Number(overview.totalOrders || 0),
+            totalPayments: Number(overview.totalPayments || 0)
+          };
+          this.recentActivities = Array.isArray(response?.recentActivities) ? response.recentActivities : [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+      },
+      error: (error) => {
+        console.error('Error loading admin data:', error);
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');
@@ -75,11 +119,9 @@ export class AdminDashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  goToNotifications(): void {
-    this.router.navigate(['/admin-messages']);
-  }
-
   goToSettings(): void {
+    this.closeSidebar();
+    this.cdr.detectChanges();
     this.router.navigate(['/admin-settings']);
   }
 }

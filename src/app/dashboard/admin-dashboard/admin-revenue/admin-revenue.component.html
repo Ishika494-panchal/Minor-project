@@ -1,52 +1,49 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy Admin</h2>
     </div>
     <nav class="sidebar-nav">
-      <a routerLink="/admin-dashboard" class="nav-item">
+      <a routerLink="/admin-dashboard" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-home"></i> Dashboard
       </a>
-      <a routerLink="/manage-users" class="nav-item">
+      <a routerLink="/manage-users" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-users"></i> Users
       </a>
-      <a routerLink="/admin-projects" class="nav-item">
-        <i class="fas fa-project-diagram"></i> Projects
+      <a routerLink="/admin-projects" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-project-diagram"></i> Services & Orders
       </a>
-      <a routerLink="/admin-revenue" class="nav-item active">
-        <i class="fas fa-dollar-sign"></i> Revenue
+      <a routerLink="/admin-revenue" class="nav-item active" (click)="closeSidebar()">
+        <i class="fas fa-dollar-sign"></i> Payments
       </a>
-      <a href="#" class="nav-item">
-        <i class="fas fa-envelope"></i> Messages
-      </a>
-      <a href="#" class="nav-item">
-        <i class="fas fa-shield-alt"></i> Security
-      </a>
-      <a href="#" class="nav-item">
+      <a routerLink="/admin-settings" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-cog"></i> Settings
       </a>
     </nav>
     <div class="sidebar-footer">
-      <button class="logout-btn" (click)="logout()">
+      <button type="button" class="logout-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <div class="navbar-left">
+        <button type="button" class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle admin sidebar">
+          <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+        </button>
+      </div>
       <div class="header-title">
         <h1>Revenue Management</h1>
         <p class="subtitle">Track platform earnings and transaction details.</p>
       </div>
       <div class="header-actions">
-        <button class="notification-btn">
-          <i class="fas fa-bell"></i>
-        </button>
         <div class="user-avatar">
           <i class="fas fa-user-shield"></i>
         </div>
@@ -195,11 +192,11 @@
               placeholder="To Date"
             >
             
-            <button class="clear-btn" (click)="clearFilters()">
+            <button type="button" class="clear-btn" (click)="clearFilters()">
               <i class="fas fa-times"></i> Clear
             </button>
             
-            <button class="export-btn" (click)="exportToCSV()">
+            <button type="button" class="export-btn" (click)="exportToCSV()">
               <i class="fas fa-download"></i> Export CSV
             </button>
           </div>
@@ -219,23 +216,45 @@
                 <th>Payment Method</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Admin Action</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let transaction of filteredTransactions">
-                <td class="txn-id">{{ transaction.id }}</td>
-                <td>{{ transaction.clientName }}</td>
-                <td>{{ transaction.freelancerName }}</td>
-                <td class="project-title">{{ transaction.projectTitle }}</td>
-                <td class="amount">{{ formatCurrency(transaction.amount) }}</td>
-                <td class="commission">{{ formatCurrency(transaction.commission) }}</td>
-                <td>{{ transaction.paymentMethod }}</td>
-                <td>
+                <td class="txn-id" data-label="Transaction ID">{{ transaction.id }}</td>
+                <td data-label="Client">{{ transaction.clientName }}</td>
+                <td data-label="Freelancer">{{ transaction.freelancerName }}</td>
+                <td class="project-title" data-label="Project">{{ transaction.projectTitle }}</td>
+                <td class="amount" data-label="Amount">{{ formatCurrency(transaction.amount) }}</td>
+                <td class="commission" data-label="Commission">{{ formatCurrency(transaction.commission) }}</td>
+                <td data-label="Method">{{ transaction.paymentMethod }}</td>
+                <td data-label="Status">
                   <span class="status-badge" [ngClass]="getStatusClass(transaction.status)">
                     {{ transaction.status }}
                   </span>
                 </td>
-                <td class="date">{{ transaction.date }}</td>
+                <td class="date" data-label="Date">{{ transaction.date }}</td>
+                <td class="actions" data-label="Admin Action">
+                  <button
+                    type="button"
+                    class="action-btn suspend-btn"
+                    (click)="markReviewing(transaction)"
+                    *ngIf="transaction.status === 'Pending'"
+                    [disabled]="isActionInProgress(transaction.id)"
+                  >
+                    {{ isActionInProgress(transaction.id) ? 'Updating...' : 'Mark Reviewing' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="action-btn edit-btn"
+                    (click)="approvePayment(transaction)"
+                    *ngIf="transaction.status === 'Reviewing'"
+                    [disabled]="isActionInProgress(transaction.id)"
+                  >
+                    {{ isActionInProgress(transaction.id) ? 'Updating...' : 'Approve Payment' }}
+                  </button>
+                  <span *ngIf="transaction.status === 'Completed'">Approved</span>
+                </td>
               </tr>
             </tbody>
           </table>

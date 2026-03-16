@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema({
     enum: ['freelancer', 'client', 'admin'],
     default: 'client'
   },
+  accountStatus: {
+    type: String,
+    enum: ['Active', 'Blocked'],
+    default: 'Active'
+  },
   // Freelancer specific fields
   earnings: {
     type: Number,

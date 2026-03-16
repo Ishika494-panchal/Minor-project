@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, NgZone, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { AdminService } from '../../../services/admin.service';
 
 export interface User {
   id: string;
@@ -10,6 +11,9 @@ export interface User {
   role: 'Freelancer' | 'Client' | 'Admin';
   status: 'Active' | 'Suspended' | 'Blocked';
   joinedDate: string;
+  skills?: string[];
+  bio?: string;
+  hourlyRate?: number;
 }
 
 @Component({
@@ -21,106 +25,7 @@ export interface User {
 })
 export class ManageUsersComponent implements OnInit {
   userData: any = null;
-  
-  // Mock data
-  users: User[] = [
-    {
-      id: 'U1023',
-      name: 'Rahul Sharma',
-      email: 'rahul@gmail.com',
-      role: 'Freelancer',
-      status: 'Active',
-      joinedDate: '12 March 2026'
-    },
-    {
-      id: 'U1024',
-      name: 'Priya Patel',
-      email: 'priya@gmail.com',
-      role: 'Client',
-      status: 'Active',
-      joinedDate: '15 February 2026'
-    },
-    {
-      id: 'U1025',
-      name: 'Aman Gupta',
-      email: 'aman@gmail.com',
-      role: 'Freelancer',
-      status: 'Blocked',
-      joinedDate: '20 March 2026'
-    },
-    {
-      id: 'U1026',
-      name: 'Neha Verma',
-      email: 'neha@gmail.com',
-      role: 'Client',
-      status: 'Active',
-      joinedDate: '5 January 2026'
-    },
-    {
-      id: 'U1027',
-      name: 'Admin User',
-      email: 'admin@skillzyy.com',
-      role: 'Admin',
-      status: 'Active',
-      joinedDate: '1 January 2025'
-    },
-    {
-      id: 'U1028',
-      name: 'Sanjay Kumar',
-      email: 'sanjay@gmail.com',
-      role: 'Freelancer',
-      status: 'Suspended',
-      joinedDate: '10 March 2026'
-    },
-    {
-      id: 'U1029',
-      name: 'Anjali Singh',
-      email: 'anjali@gmail.com',
-      role: 'Client',
-      status: 'Active',
-      joinedDate: '18 March 2026'
-    },
-    {
-      id: 'U1030',
-      name: 'Vikram Malhotra',
-      email: 'vikram@gmail.com',
-      role: 'Freelancer',
-      status: 'Active',
-      joinedDate: '22 March 2026'
-    },
-    {
-      id: 'U1031',
-      name: 'Pooja Reddy',
-      email: 'pooja@gmail.com',
-      role: 'Client',
-      status: 'Blocked',
-      joinedDate: '25 February 2026'
-    },
-    {
-      id: 'U1032',
-      name: 'Arjun Kapoor',
-      email: 'arjun@gmail.com',
-      role: 'Freelancer',
-      status: 'Active',
-      joinedDate: '1 April 2026'
-    },
-    {
-      id: 'U1033',
-      name: 'Riya Sharma',
-      email: 'riya@gmail.com',
-      role: 'Client',
-      status: 'Suspended',
-      joinedDate: '5 April 2026'
-    },
-    {
-      id: 'U1034',
-      name: 'Kunal Patel',
-      email: 'kunal@gmail.com',
-      role: 'Freelancer',
-      status: 'Active',
-      joinedDate: '8 April 2026'
-    }
-  ];
+  users: User[] = [];
 
   // Filtered users
   filteredUsers: User[] = [];
@@ -139,28 +44,41 @@ export class ManageUsersComponent implements OnInit {
   roleOptions: string[] = ['All', 'Freelancer', 'Client', 'Admin'];
   
   // Status options for dropdown
-  statusOptions: string[] = ['All', 'Active', 'Suspended', 'Blocked'];
+  statusOptions: string[] = ['All', 'Active', 'Blocked'];
 
   // Edit user modal
   showEditModal: boolean = false;
+  showProfileModal: boolean = false;
   editingUser: User | null = null;
+  selectedProfileUser: User | null = null;
   editForm: User = {
     id: '',
     name: '',
     email: '',
     role: 'Client',
     status: 'Active',
-    joinedDate: ''
+    joinedDate: '',
+    bio: '',
+    skills: [],
+    hourlyRate: 0
   };
 
   // Math helper for template
   Math = Math;
+  activeUserActionIds = new Set<string>();
+  isSavingEdit = false;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
 
   constructor(
-    private router: Router
+    private router: Router,
+    private adminService: AdminService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -175,10 +93,33 @@ export class ManageUsersComponent implements OnInit {
         }
         return;
       }
-      this.filteredUsers = [...this.users];
-      this.calculatePagination();
+      this.loadUsers();
     } else {
       this.router.navigate(['/login']);
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) return;
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
 
@@ -247,77 +188,235 @@ export class ManageUsersComponent implements OnInit {
 
   // View user profile
   viewProfile(user: User): void {
-    alert(`Viewing profile for ${user.name} (${user.id})\n\nEmail: ${user.email}\nRole: ${user.role}\nStatus: ${user.status}\nJoined: ${user.joinedDate}`);
+    this.ngZone.run(() => {
+      this.selectedProfileUser = user;
+      this.showProfileModal = true;
+      this.cdr.detectChanges();
+    });
+  }
+
+  closeProfileModal(): void {
+    this.ngZone.run(() => {
+      this.showProfileModal = false;
+      this.selectedProfileUser = null;
+      this.cdr.detectChanges();
+    });
   }
 
   // Open edit modal
   openEditModal(user: User): void {
-    this.editingUser = user;
-    this.editForm = { ...user };
-    this.showEditModal = true;
+    this.ngZone.run(() => {
+      this.editingUser = user;
+      this.editForm = { ...user };
+      this.showEditModal = true;
+      this.cdr.detectChanges();
+    });
   }
 
   // Close edit modal
   closeEditModal(): void {
-    this.showEditModal = false;
-    this.editingUser = null;
+    this.ngZone.run(() => {
+      this.showEditModal = false;
+      this.editingUser = null;
+      this.isSavingEdit = false;
+      this.cdr.detectChanges();
+    });
   }
 
   // Save user edits
   saveUser(): void {
-    if (this.editingUser) {
-      const index = this.users.findIndex(u => u.id === this.editingUser!.id);
-      if (index !== -1) {
-        this.users[index] = { ...this.editForm };
-        this.searchUsers();
-      }
-      this.closeEditModal();
+    if (this.editingUser && !this.isSavingEdit) {
+      const editingUserId = this.editingUser.id;
+      this.isSavingEdit = true;
+      const previousUser = this.users.find((u) => u.id === editingUserId);
+      const optimisticUser = {
+        ...(previousUser || this.editForm),
+        name: this.editForm.name,
+        bio: this.editForm.bio || '',
+        skills: this.editForm.skills || [],
+        hourlyRate: Number(this.editForm.hourlyRate || 0)
+      } as User;
+
+      this.users = this.users.map((u) => (u.id === editingUserId ? optimisticUser : u));
+      this.searchUsers();
+      this.cdr.detectChanges();
+
+      this.adminService.updateUserProfileByAdmin(editingUserId, {
+        fullName: this.editForm.name,
+        bio: this.editForm.bio || '',
+        skills: this.editForm.skills || [],
+        hourlyRate: Number(this.editForm.hourlyRate || 0)
+      }).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.isSavingEdit = false;
+            this.closeEditModal();
+            this.loadUsers();
+          });
+        },
+        error: (error) => {
+          this.ngZone.run(() => {
+            if (previousUser) {
+              this.users = this.users.map((u) => (u.id === editingUserId ? previousUser : u));
+              this.searchUsers();
+            }
+            this.isSavingEdit = false;
+            this.cdr.detectChanges();
+          });
+          alert(error?.error?.message || 'Failed to update user');
+        }
+      });
     }
   }
 
   // Suspend user
   suspendUser(user: User): void {
-    if (confirm(`Are you sure you want to suspend ${user.name}?`)) {
-      const index = this.users.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        this.users[index].status = 'Suspended';
-        this.searchUsers();
-      }
+    if (this.activeUserActionIds.has(user.id)) return;
+    if (confirm(`Are you sure you want to block ${user.name}?`)) {
+      this.activeUserActionIds.add(user.id);
+      this.setUserStatusLocal(user.id, 'Blocked');
+      this.adminService.updateUserStatus(user.id, 'Blocked').subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.cdr.detectChanges();
+            this.loadUsers();
+          });
+        },
+        error: (error) => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.setUserStatusLocal(user.id, user.status);
+            this.cdr.detectChanges();
+          });
+          alert(error?.error?.message || 'Failed to block user');
+        }
+      });
     }
   }
 
   // Activate/reactivate user
   activateUser(user: User): void {
+    if (this.activeUserActionIds.has(user.id)) return;
     if (confirm(`Are you sure you want to activate ${user.name}'s account?`)) {
-      const index = this.users.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        this.users[index].status = 'Active';
-        this.searchUsers();
-      }
+      this.activeUserActionIds.add(user.id);
+      this.setUserStatusLocal(user.id, 'Active');
+      this.adminService.updateUserStatus(user.id, 'Active').subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.cdr.detectChanges();
+            this.loadUsers();
+          });
+        },
+        error: (error) => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.setUserStatusLocal(user.id, user.status);
+            this.cdr.detectChanges();
+          });
+          alert(error?.error?.message || 'Failed to activate user');
+        }
+      });
     }
   }
 
   // Block user
   blockUser(user: User): void {
+    if (this.activeUserActionIds.has(user.id)) return;
     if (confirm(`Are you sure you want to block ${user.name}?`)) {
-      const index = this.users.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        this.users[index].status = 'Blocked';
-        this.searchUsers();
-      }
+      this.activeUserActionIds.add(user.id);
+      this.setUserStatusLocal(user.id, 'Blocked');
+      this.adminService.updateUserStatus(user.id, 'Blocked').subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.cdr.detectChanges();
+            this.loadUsers();
+          });
+        },
+        error: (error) => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.setUserStatusLocal(user.id, user.status);
+            this.cdr.detectChanges();
+          });
+          alert(error?.error?.message || 'Failed to block user');
+        }
+      });
     }
   }
 
   // Delete user
   deleteUser(user: User): void {
+    if (this.activeUserActionIds.has(user.id)) return;
     if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
-      this.users = this.users.filter(u => u.id !== user.id);
+      this.activeUserActionIds.add(user.id);
+      const previousUsers = [...this.users];
+      this.users = this.users.filter((u) => u.id !== user.id);
       this.searchUsers();
+      this.cdr.detectChanges();
+
+      this.adminService.deleteUser(user.id).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.activeUserActionIds.delete(user.id);
+            this.cdr.detectChanges();
+            this.loadUsers();
+          });
+        },
+        error: (error) => {
+          this.ngZone.run(() => {
+            this.users = previousUsers;
+            this.searchUsers();
+            this.activeUserActionIds.delete(user.id);
+            this.cdr.detectChanges();
+          });
+          alert(error?.error?.message || 'Failed to delete user');
+        }
+      });
     }
+  }
+
+  private loadUsers(): void {
+    const role = this.roleFilter === 'All' ? '' : this.roleFilter.toLowerCase();
+    this.adminService.getUsers(role, this.searchTerm.trim()).subscribe({
+      next: (response) => {
+        this.ngZone.run(() => {
+          const users = Array.isArray(response?.users) ? response.users : [];
+          this.users = users.map((u: any) => ({
+            id: String(u.id),
+            name: u.fullName || '',
+            email: u.email || '',
+            role: String(u.role || 'client').charAt(0).toUpperCase() + String(u.role || 'client').slice(1) as User['role'],
+            status: (u.accountStatus || 'Active') as User['status'],
+            joinedDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '',
+            skills: Array.isArray(u.skills) ? u.skills : [],
+            bio: u.bio || '',
+            hourlyRate: Number(u.hourlyRate || 0)
+          }));
+          this.searchUsers();
+          this.cdr.detectChanges();
+        });
+      },
+      error: (error) => {
+        console.error('Failed to load users', error);
+      }
+    });
+  }
+
+  isUserActionInProgress(userId: string): boolean {
+    return this.activeUserActionIds.has(userId);
+  }
+
+  private setUserStatusLocal(userId: string, status: User['status']): void {
+    this.users = this.users.map((u) => (u.id === userId ? { ...u, status } : u));
+    this.searchUsers();
   }
 
   // Logout
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     sessionStorage.removeItem('authToken');

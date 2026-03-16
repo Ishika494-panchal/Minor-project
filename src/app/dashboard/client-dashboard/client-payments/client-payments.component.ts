@@ -13,7 +13,7 @@ interface UiPayment {
   amount: number;
   paymentMethod: string;
   date: Date;
-  status: 'Pending' | 'Completed' | 'Failed' | 'Refunded';
+  status: 'Pending' | 'Reviewing' | 'Completed' | 'Failed' | 'Refunded';
 }
 
 interface UiSummary {
@@ -98,7 +98,7 @@ export class ClientPaymentsComponent implements OnInit {
               totalSpent: this.payments
                 .filter((p) => p.status === 'Completed')
                 .reduce((sum, p) => sum + p.amount, 0),
-              pendingPayments: this.payments.filter((p) => p.status === 'Pending').length,
+              pendingPayments: this.payments.filter((p) => p.status === 'Pending' || p.status === 'Reviewing').length,
               completedPayments: this.payments.filter((p) => p.status === 'Completed').length
             };
             this.cdr.detectChanges();
@@ -224,7 +224,7 @@ export class ClientPaymentsComponent implements OnInit {
   }
 
   getPendingPayments(): UiPayment[] {
-    return this.payments.filter(p => p.status === 'Pending');
+    return this.payments.filter(p => p.status === 'Pending' || p.status === 'Reviewing');
   }
 
   getCompletedPayments(): UiPayment[] {

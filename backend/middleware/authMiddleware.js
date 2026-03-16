@@ -28,6 +28,10 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
+    if (String(req.user.accountStatus || 'Active') === 'Blocked') {
+      return res.status(403).json({ success: false, message: 'Account is blocked' });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Not authorized, token failed' });

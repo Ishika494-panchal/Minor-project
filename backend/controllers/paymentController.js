@@ -21,6 +21,34 @@ const resolveFreelancerName = async (project) => {
   return 'Freelancer';
 };
 
+const finalizeCompletedPayment = async ({ app, payment, actorId }) => {
+  if (!payment) return;
+  await Promise.all([
+    Project.findByIdAndUpdate(payment.projectId, { status: 'Completed' }),
+    incrementCompletedJobsCounter(payment.freelancerId, payment.projectId),
+    User.findByIdAndUpdate(payment.freelancerId, {
+      $inc: { earnings: Number(payment.amount || 0) - Number(payment.platformFee || 0) }
+    })
+  ]);
+
+  await createNotification(app, {
+    recipientId: payment.freelancerId,
+    actorId: actorId || payment.clientId,
+    type: 'payment_success',
+    title: 'Payment completed',
+    message: 'Payment is done through net banking and has been credited successfully.',
+    linkedEntityType: 'payment',
+    linkedEntityId: String(payment._id),
+    actionUrl: '/freelancer-earnings',
+    metadata: {
+      projectId: String(payment.projectId),
+      paymentId: String(payment._id),
+      amount: payment.amount,
+      payoutMode: 'net_banking'
+    }
+  });
+};
+
 const buildRazorpayReceipt = (projectId) => {
   // Razorpay requires receipt length <= 40 chars.
   const compactProjectId = String(projectId || '').slice(-10);
@@ -173,10 +201,7 @@ exports.updatePaymentStatus = async (req, res) => {
     
     // If completed, update project status
     if (status === 'Completed') {
-      await Project.findByIdAndUpdate(payment.projectId, {
-        status: 'Completed'
-      });
-      await incrementCompletedJobsCounter(payment.freelancerId, payment.projectId);
+      await finalizeCompletedPayment({ app: req.app, payment, actorId: req.user.id });
     }
     
     res.json({ success: true, payment });
@@ -422,7 +447,7 @@ exports.verifyPayment = async (req, res) => {
     const payment = await Payment.findOneAndUpdate(
       { razorpayOrderId: razorpay_order_id },
       {
-        status: 'Completed',
+        status: 'Reviewing',
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
         paymentDate: Date.now()
@@ -437,25 +462,12 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Mark project as completed after successful payment verification.
-    await Project.findByIdAndUpdate(projectId, {
-      status: 'Completed'
-    });
-
-    await incrementCompletedJobsCounter(payment.freelancerId, projectId);
-
-    // Update freelancer earnings
-    const freelancerEarnings = payment.amount - payment.platformFee;
-    await User.findByIdAndUpdate(payment.freelancerId, {
-      $inc: { earnings: freelancerEarnings }
-    });
-
     await Promise.all([
       createNotification(req.app, {
         recipientId: payment.freelancerId,
         actorId: payment.clientId,
         type: 'payment_success',
-        title: 'Payment received',
+        title: 'Payment under review',
         message: `Payment for "${payment.projectTitle}" has been successfully received and is under review.`,
         linkedEntityType: 'payment',
         linkedEntityId: String(payment._id),

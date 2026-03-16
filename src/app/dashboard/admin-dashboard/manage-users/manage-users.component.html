@@ -1,52 +1,49 @@
 <div class="dashboard-container">
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" [class.mobile-sidebar]="isMobileOrTablet" [class.sidebar-open]="isMobileOrTablet && isSidebarOpen">
     <div class="sidebar-header">
       <img src="assets/skillzyy-logo.png" alt="Skillzyy Logo" class="logo">
       <h2>Skillzyy Admin</h2>
     </div>
     <nav class="sidebar-nav">
-      <a routerLink="/admin-dashboard" class="nav-item">
+      <a routerLink="/admin-dashboard" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-home"></i> Dashboard
       </a>
-      <a routerLink="/manage-users" class="nav-item active">
+      <a routerLink="/manage-users" class="nav-item active" (click)="closeSidebar()">
         <i class="fas fa-users"></i> Users
       </a>
-      <a routerLink="/admin-projects" class="nav-item">
-        <i class="fas fa-project-diagram"></i> Projects
+      <a routerLink="/admin-projects" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-project-diagram"></i> Services &amp; Orders
       </a>
-      <a routerLink="/admin-revenue" class="nav-item">
-        <i class="fas fa-dollar-sign"></i> Revenue
+      <a routerLink="/admin-revenue" class="nav-item" (click)="closeSidebar()">
+        <i class="fas fa-dollar-sign"></i> Payments
       </a>
-      <a routerLink="/admin-messages" class="nav-item">
-        <i class="fas fa-envelope"></i> Messages
-      </a>
-      <a routerLink="/admin-security" class="nav-item">
-        <i class="fas fa-shield-alt"></i> Security
-      </a>
-      <a routerLink="/admin-settings" class="nav-item">
+      <a routerLink="/admin-settings" class="nav-item" (click)="closeSidebar()">
         <i class="fas fa-cog"></i> Settings
       </a>
     </nav>
     <div class="sidebar-footer">
-      <button class="logout-btn" (click)="logout()">
+      <button type="button" class="logout-btn" (click)="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" *ngIf="isMobileOrTablet && isSidebarOpen" (click)="closeSidebar()"></div>
 
   <!-- Main Content -->
   <main class="main-content">
     <!-- Header -->
     <header class="dashboard-header">
+      <div class="navbar-left">
+        <button type="button" class="hamburger-btn" *ngIf="isMobileOrTablet" (click)="toggleSidebar($event)" aria-label="Toggle admin sidebar">
+          <i class="fas" [ngClass]="isSidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+        </button>
+      </div>
       <div class="header-title">
         <h1>Manage Users</h1>
         <p class="subtitle">Manage all registered users on the platform.</p>
       </div>
       <div class="header-actions">
-        <button class="notification-btn">
-          <i class="fas fa-bell"></i>
-        </button>
         <div class="user-avatar">
           <i class="fas fa-user-shield"></i>
         </div>
@@ -98,54 +95,60 @@
           </thead>
           <tbody>
             <tr *ngFor="let user of paginatedUsers">
-              <td class="user-id">{{ user.id }}</td>
-              <td class="user-name">{{ user.name }}</td>
-              <td class="user-email">
+              <td class="user-id" data-label="User ID">{{ user.id }}</td>
+              <td class="user-name" data-label="Name">{{ user.name }}</td>
+              <td class="user-email" data-label="Email">
                 <a [href]="'mailto:' + user.email">{{ user.email }}</a>
               </td>
-              <td>
+              <td data-label="Role">
                 <span class="role-badge" [ngClass]="user.role.toLowerCase()">
                   {{ user.role }}
                 </span>
               </td>
-              <td>
+              <td data-label="Status">
                 <span class="status-badge" [ngClass]="user.status.toLowerCase()">
                   {{ user.status }}
                 </span>
               </td>
-              <td class="joined-date">{{ user.joinedDate }}</td>
-              <td class="actions">
-                <button class="action-btn view-btn" (click)="viewProfile(user)" title="View Profile">
+              <td class="joined-date" data-label="Joined Date">{{ user.joinedDate }}</td>
+              <td class="actions" data-label="Actions">
+                <button type="button" class="action-btn view-btn" (click)="viewProfile(user)" title="View Profile">
                   <i class="fas fa-eye"></i>
                 </button>
-                <button class="action-btn edit-btn" (click)="openEditModal(user)" title="Edit User">
+                <button type="button" class="action-btn edit-btn" (click)="openEditModal(user)" title="Edit User" [disabled]="isUserActionInProgress(user.id)">
                   <i class="fas fa-edit"></i>
                 </button>
                 <button 
+                  type="button"
                   class="action-btn activate-btn" 
                   (click)="activateUser(user)" 
                   title="Activate User"
                   *ngIf="user.status !== 'Active'"
+                  [disabled]="isUserActionInProgress(user.id)"
                 >
                   <i class="fas fa-check-circle"></i>
                 </button>
                 <button 
+                  type="button"
                   class="action-btn suspend-btn" 
                   (click)="suspendUser(user)" 
                   title="Suspend User"
                   *ngIf="user.status === 'Active'"
+                  [disabled]="isUserActionInProgress(user.id)"
                 >
                   <i class="fas fa-ban"></i>
                 </button>
                 <button 
+                  type="button"
                   class="action-btn block-btn" 
                   (click)="blockUser(user)" 
                   title="Block User"
                   *ngIf="user.status !== 'Blocked'"
+                  [disabled]="isUserActionInProgress(user.id)"
                 >
                   <i class="fas fa-lock"></i>
                 </button>
-                <button class="action-btn delete-btn" (click)="deleteUser(user)" title="Delete User">
+                <button type="button" class="action-btn delete-btn" (click)="deleteUser(user)" title="Delete User" [disabled]="isUserActionInProgress(user.id)">
                   <i class="fas fa-trash"></i>
                 </button>
               </td>
@@ -161,7 +164,8 @@
 
         <!-- Pagination -->
         <div class="pagination" *ngIf="totalPages > 1">
-          <button 
+          <button
+            type="button" 
             class="pagination-btn" 
             (click)="previousPage()" 
             [disabled]="currentPage === 1"
@@ -169,7 +173,8 @@
             <i class="fas fa-chevron-left"></i> Previous
           </button>
           <div class="page-numbers">
-            <button 
+            <button
+              type="button"
               *ngFor="let page of [].constructor(totalPages); let i = index" 
               class="page-btn" 
               [class.active]="currentPage === i + 1"
@@ -178,7 +183,8 @@
               {{ i + 1 }}
             </button>
           </div>
-          <button 
+          <button
+            type="button" 
             class="pagination-btn" 
             (click)="nextPage()" 
             [disabled]="currentPage === totalPages"
@@ -196,12 +202,75 @@
   </main>
 </div>
 
+<!-- View Profile Modal -->
+<div class="modal-overlay" *ngIf="showProfileModal" (click)="closeProfileModal()">
+  <div class="modal-content profile-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>User Profile</h2>
+      <button type="button" class="close-btn" (click)="closeProfileModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body" *ngIf="selectedProfileUser">
+      <div class="profile-top">
+        <div class="profile-avatar">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-primary">
+          <h3>{{ selectedProfileUser.name || 'User' }}</h3>
+          <p>{{ selectedProfileUser.email }}</p>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-item">
+          <label>User ID</label>
+          <p>{{ selectedProfileUser.id }}</p>
+        </div>
+        <div class="profile-item">
+          <label>Role</label>
+          <span class="role-badge" [ngClass]="selectedProfileUser.role.toLowerCase()">{{ selectedProfileUser.role }}</span>
+        </div>
+        <div class="profile-item">
+          <label>Status</label>
+          <span class="status-badge" [ngClass]="selectedProfileUser.status.toLowerCase()">{{ selectedProfileUser.status }}</span>
+        </div>
+        <div class="profile-item">
+          <label>Joined Date</label>
+          <p>{{ selectedProfileUser.joinedDate || '-' }}</p>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <label>Skills</label>
+        <div class="skill-chips" *ngIf="selectedProfileUser.skills?.length; else noSkills">
+          <span class="skill-chip" *ngFor="let skill of selectedProfileUser.skills">{{ skill }}</span>
+        </div>
+        <ng-template #noSkills>
+          <p class="empty-text">No skills added.</p>
+        </ng-template>
+      </div>
+
+      <div class="profile-section">
+        <label>Bio</label>
+        <p class="bio-text">{{ selectedProfileUser.bio || 'No bio available.' }}</p>
+      </div>
+
+      <div class="profile-section" *ngIf="selectedProfileUser.role === 'Freelancer'">
+        <label>Hourly Rate</label>
+        <p class="rate-text">₹{{ selectedProfileUser.hourlyRate || 0 }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Edit User Modal -->
 <div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h2>Edit User</h2>
-      <button class="close-btn" (click)="closeEditModal()">
+      <button type="button" class="close-btn" (click)="closeEditModal()">
         <i class="fas fa-times"></i>
       </button>
     </div>
@@ -272,8 +341,8 @@
           >
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" (click)="closeEditModal()">Cancel</button>
-          <button type="submit" class="btn-save">Save Changes</button>
+          <button type="button" class="btn-cancel" (click)="closeEditModal()" [disabled]="isSavingEdit">Cancel</button>
+          <button type="submit" class="btn-save" [disabled]="isSavingEdit">{{ isSavingEdit ? 'Saving...' : 'Save Changes' }}</button>
         </div>
       </form>
     </div>

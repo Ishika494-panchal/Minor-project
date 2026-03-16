@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -66,6 +66,8 @@ export class AdminSettingsComponent implements OnInit {
   settings: AdminSettings | null = null;
   activeTab: string = 'general';
   showSaveConfirmation: boolean = false;
+  isMobileOrTablet = false;
+  isSidebarOpen = false;
   
   // Password change fields
   showPasswordModal: boolean = false;
@@ -112,6 +114,7 @@ export class AdminSettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.updateViewportState();
     const userDataStr = localStorage.getItem('userData') || sessionStorage.getItem('userData');
     if (userDataStr) {
       this.userData = JSON.parse(userDataStr);
@@ -122,6 +125,30 @@ export class AdminSettingsComponent implements OnInit {
       this.loadSettings();
     } else {
       this.router.navigate(['/login']);
+    }
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateViewportState();
+  }
+
+  private updateViewportState(): void {
+    this.isMobileOrTablet = window.innerWidth <= 1024;
+    if (!this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
+    }
+  }
+
+  toggleSidebar(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isMobileOrTablet) return;
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    if (this.isMobileOrTablet) {
+      this.isSidebarOpen = false;
     }
   }
   
@@ -286,6 +313,7 @@ export class AdminSettingsComponent implements OnInit {
   }
   
   logout(): void {
+    this.closeSidebar();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     localStorage.removeItem('adminSettings');

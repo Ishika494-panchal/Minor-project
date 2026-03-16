@@ -12,7 +12,7 @@ interface UiPayment {
   amount: number;
   paymentMethod: string;
   date: Date;
-  status: 'Pending' | 'Completed' | 'Failed' | 'Refunded';
+  status: 'Pending' | 'Reviewing' | 'Completed' | 'Failed' | 'Refunded';
 }
 
 @Component({

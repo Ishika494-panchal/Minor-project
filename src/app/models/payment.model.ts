@@ -5,7 +5,7 @@ export interface Payment {
   amount: number;
   paymentMethod: string;
   date: Date;
-  status: 'Pending' | 'Completed' | 'Failed';
+  status: 'Pending' | 'Reviewing' | 'Completed' | 'Failed';
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;

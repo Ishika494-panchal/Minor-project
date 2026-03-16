@@ -186,9 +186,9 @@
                     <i class="fas fa-envelope"></i> Message Client
                   </button>
                 </div>
-                <div class="payment-review-inline-note" *ngIf="isPaymentUnderReview(project)">
+                <div class="payment-review-inline-note" *ngIf="getPaymentStatusNote(project)">
                   <i class="fas fa-shield-alt"></i>
-                  Payment is being reviewed by Skillzyy. You will receive it in 2-3 working days.
+                  {{ getPaymentStatusNote(project) }}
                 </div>
                 <div class="resubmit-inline-note" *ngIf="project.status === 'In Progress' && project.resubmissionReason">
                   <i class="fas fa-rotate-left"></i>
