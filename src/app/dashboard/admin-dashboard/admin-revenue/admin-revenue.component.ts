@@ -253,42 +253,6 @@ export class AdminRevenueComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  markReviewing(transaction: Transaction): void {
-    if (this.activeActionPaymentIds.has(transaction.id)) {
-      return;
-    }
-
-    this.activeActionPaymentIds.add(transaction.id);
-    const previousStatus = transaction.status;
-    // Immediate first-click UI feedback.
-    this.transactions = this.transactions.map((item) =>
-      item.id === transaction.id ? { ...item, status: 'Reviewing' } : item
-    );
-    this.refreshDerivedData();
-    this.cdr.detectChanges();
-
-    this.adminService.reviewPayment(transaction.id, 'reviewing').subscribe({
-      next: () => {
-        this.ngZone.run(() => {
-          this.activeActionPaymentIds.delete(transaction.id);
-          this.cdr.detectChanges();
-          this.loadData();
-        });
-      },
-      error: (error) => {
-        this.ngZone.run(() => {
-          this.transactions = this.transactions.map((item) =>
-            item.id === transaction.id ? { ...item, status: previousStatus } : item
-          );
-          this.refreshDerivedData();
-          this.activeActionPaymentIds.delete(transaction.id);
-          this.cdr.detectChanges();
-        });
-        alert(error?.error?.message || 'Failed to mark payment as reviewing');
-      }
-    });
-  }
-
   approvePayment(transaction: Transaction): void {
     if (this.activeActionPaymentIds.has(transaction.id)) {
       return;

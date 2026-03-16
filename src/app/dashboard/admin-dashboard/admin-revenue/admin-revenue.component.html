@@ -237,15 +237,6 @@
                 <td class="actions" data-label="Admin Action">
                   <button
                     type="button"
-                    class="action-btn suspend-btn"
-                    (click)="markReviewing(transaction)"
-                    *ngIf="transaction.status === 'Pending'"
-                    [disabled]="isActionInProgress(transaction.id)"
-                  >
-                    {{ isActionInProgress(transaction.id) ? 'Updating...' : 'Mark Reviewing' }}
-                  </button>
-                  <button
-                    type="button"
                     class="action-btn edit-btn"
                     (click)="approvePayment(transaction)"
                     *ngIf="transaction.status === 'Reviewing'"
@@ -253,6 +244,7 @@
                   >
                     {{ isActionInProgress(transaction.id) ? 'Updating...' : 'Approve Payment' }}
                   </button>
+                  <span *ngIf="transaction.status === 'Pending'">Waiting for client payment</span>
                   <span *ngIf="transaction.status === 'Completed'">Approved</span>
                 </td>
               </tr>

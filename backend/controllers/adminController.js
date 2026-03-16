@@ -320,66 +320,52 @@ exports.getAllPayments = async (req, res) => {
 exports.reviewPayment = async (req, res) => {
   try {
     const { action } = req.body;
-    if (!['reviewing', 'approve'].includes(String(action))) {
-      return res.status(400).json({ success: false, message: 'Invalid review action' });
+    if (String(action) !== 'approve') {
+      return res.status(400).json({ success: false, message: 'Only approve action is allowed' });
     }
 
     const payment = await Payment.findById(req.params.id);
     if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
-
-    if (action === 'reviewing') {
-      payment.status = 'Reviewing';
-      await payment.save();
-
-      await createNotification(req.app, {
-        recipientId: payment.freelancerId,
-        actorId: req.user.id,
-        type: 'payment_success',
-        title: 'Payment review started',
-        message: 'Payment is being reviewed and will be transferred in 2-3 working days.',
-        linkedEntityType: 'payment',
-        linkedEntityId: String(payment._id),
-        actionUrl: '/my-projects',
-        metadata: { paymentId: String(payment._id), projectId: String(payment.projectId) }
-      });
-    } else {
-      payment.status = 'Completed';
-      await payment.save();
-
-      await Promise.all([
-        Project.findByIdAndUpdate(payment.projectId, { status: 'Completed' }),
-        User.findByIdAndUpdate(payment.freelancerId, {
-          $inc: { earnings: Number(payment.amount || 0) - Number(payment.platformFee || 0) }
-        })
-      ]);
-
-      await createNotification(req.app, {
-        recipientId: payment.freelancerId,
-        actorId: req.user.id,
-        type: 'payment_success',
-        title: 'Payment approved by admin',
-        message: 'Payment is done through net banking and has been credited successfully.',
-        linkedEntityType: 'payment',
-        linkedEntityId: String(payment._id),
-        actionUrl: '/freelancer-earnings',
-        metadata: {
-          paymentId: String(payment._id),
-          projectId: String(payment.projectId),
-          payoutMode: 'net_banking'
-        }
+    if (payment.status !== 'Reviewing') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment can be approved only after client payment is done and status is Reviewing'
       });
     }
 
+    payment.status = 'Completed';
+    await payment.save();
+
+    await Promise.all([
+      Project.findByIdAndUpdate(payment.projectId, { status: 'Completed' }),
+      User.findByIdAndUpdate(payment.freelancerId, {
+        $inc: { earnings: Number(payment.amount || 0) - Number(payment.platformFee || 0) }
+      })
+    ]);
+
+    await createNotification(req.app, {
+      recipientId: payment.freelancerId,
+      actorId: req.user.id,
+      type: 'payment_success',
+      title: 'Payment approved by admin',
+      message: 'Payment is done through net banking and has been credited successfully.',
+      linkedEntityType: 'payment',
+      linkedEntityId: String(payment._id),
+      actionUrl: '/freelancer-earnings',
+      metadata: {
+        paymentId: String(payment._id),
+        projectId: String(payment.projectId),
+        payoutMode: 'net_banking'
+      }
+    });
+
     await createAdminActivity({
       adminId: req.user.id,
-      actionType: action === 'approve' ? 'payment_approved' : 'payment_reviewing',
+      actionType: 'payment_approved',
       targetType: 'payment',
       targetId: payment._id,
-      message:
-        action === 'approve'
-          ? `Admin approved payment ${payment._id}.`
-          : `Admin marked payment ${payment._id} as reviewing.`,
-      metadata: { paymentId: String(payment._id), action }
+      message: `Admin approved payment ${payment._id}.`,
+      metadata: { paymentId: String(payment._id), action: 'approve' }
     });
 
     return res.json({

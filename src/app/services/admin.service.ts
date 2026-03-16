@@ -68,7 +68,7 @@ export class AdminService {
     return this.http.get(`${this.baseUrl}/payments`, { headers: this.getAuthHeaders() });
   }
 
-  reviewPayment(paymentId: string, action: 'reviewing' | 'approve'): Observable<any> {
+  reviewPayment(paymentId: string, action: 'approve'): Observable<any> {
     return this.http.put(
       `${this.baseUrl}/payments/${paymentId}/review`,
       { action },
